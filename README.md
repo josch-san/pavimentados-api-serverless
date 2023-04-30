@@ -1,4 +1,4 @@
-# 🚀 Project Template
+# Pavimentados AWS Serverless
 
 The <span style="color:#3EACAD">template</span> is a standardized, but flexible *project* and *documentation* structure of folders and files for sharing your data science work.
 
