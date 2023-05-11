@@ -1,0 +1,136 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Pavimentados serverless version
+
+Parameters:
+  InfraTableName:
+    Type: String
+    Description: DynamoDB table name
+  AttachmentsBucketName:
+    Type: String
+    Description: Attachments bucket name
+  DatalakeBucketName:
+    Type: String
+    Description: Datalake bucket name
+  ArtifactsBucketName:
+    Type: String
+    Description: Artifacts bucket name
+  Mode:
+    Type: String
+    Description: Environment context
+    Default: dev
+    AllowedValues:
+      - dev
+      - test
+      - prod
+
+Mappings:
+  ModeMap:
+    dev:
+      ModeSuffix: -dev
+      ApiStage: dev
+    test:
+      ModeSuffix: -test
+      ApiStage: test
+    prod:
+      ModeSuffix: ''
+      ApiStage: v1
+
+Globals:
+  Function:
+    Timeout: 30
+    Runtime: python3.9
+    # Tracing: Active
+    Environment:
+      Variables:
+        LOG_LEVEL: INFO
+        POWERTOOLS_LOGGER_SAMPLE_RATE: 0.1
+        POWERTOOLS_LOGGER_LOG_EVENT: true
+        # POWERTOOLS_SERVICE_NAME: example
+    Tags:
+      Product: Pavimentados
+      Environment: !Ref Mode
+
+
+Resources:
+  LambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /service-role/
+      RoleName: !Sub
+        - 'PavimentadosLambdaRole${suffix}'
+        - suffix: !FindInMap [ModeMap, !Ref Mode, ModeSuffix]
+      Description: 'Pavimentados Lambda service role.'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+
+  ApiGatewayRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /service-role/
+      RoleName: !Sub
+        - 'PavimentadosApiGatewayRole${suffix}'
+        - suffix: !FindInMap [ModeMap, !Ref Mode, ModeSuffix]
+      Description: 'Pavimentados Api Gateway service role.'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: infra-apigateway-policy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - 
+                Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource:
+                  - !GetAtt TaskMicroserviceFunction.Arn
+
+  PavimentadosApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Description: Main API access to work with infradinamica
+      StageName: !FindInMap [ModeMap, !Ref Mode, ApiStage]
+      EndpointConfiguration:
+        Type: REGIONAL
+      DefinitionBody: !Transform
+        Name: AWS::Include
+        Parameters:
+          Location: src/apigateway/api-definition.yaml
+      MethodSettings:
+        - HttpMethod: '*'
+          ResourcePath: '/*'
+          ThrottlingBurstLimit: 50
+          ThrottlingRateLimit: 100
+      # TracingEnabled: true
+      Tags:
+        Product: Pavimentados
+        Environment: !Ref Mode
+
+  TaskMicroserviceFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub
+        - 'pavimentados-task-microservice${suffix}'
+        - suffix: !FindInMap [ModeMap, !Ref Mode, ModeSuffix]
+      Role: !GetAtt LambdaRole.Arn
+      Description: Task microservice API handler function
+      CodeUri: src/lambda/task-microservice
+      Handler: app.lambda_handler
+      Layers:
+        - !Sub 'arn:aws:lambda:${AWS::Region}:017000801446:layer:AWSLambdaPowertoolsPythonV2:32'
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref InfraTableName
+          API_STAGE: !FindInMap [ModeMap, !Ref Mode, ApiStage]

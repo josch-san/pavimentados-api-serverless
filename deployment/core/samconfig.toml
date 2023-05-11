@@ -1,0 +1,14 @@
+version=0.1
+[default.deploy.parameters]
+stack_name = "infra-core-dev"
+s3_bucket = "project-deployment-templates"
+s3_prefix = "infra"
+region = "us-east-1"
+parameter_overrides = "Mode=dev"
+
+[prod.deploy.parameters]
+stack_name = "infra-core"
+s3_bucket = "project-deployment-templates"
+s3_prefix = "infra"
+region = "us-east-1"
+parameter_overrides = "Mode=prod"

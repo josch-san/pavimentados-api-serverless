@@ -1,0 +1,163 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Infra serverless core resources
+
+Parameters:
+  Mode:
+    Type: String
+    Description: Environment context
+    Default: dev
+    AllowedValues:
+      - dev
+      - test
+      - prod
+
+Mappings:
+  ModeMap:
+    dev:
+      ModeSuffix: -dev
+    prod:
+      ModeSuffix: ''
+
+
+Resources:
+  ArtifactsBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    Properties:
+      BucketName: !Sub
+        - 'infra-artifacts${envSuffix}-${AWS::AccountId}'
+        - envSuffix: !FindInMap [ModeMap, !Ref Mode, ModeSuffix]
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: Product
+          Value: Infra
+        - Key: Environment
+          Value: !Ref Mode
+        - Key: Name
+          Value: ArtifactsBucket
+
+  DatalakeBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    Properties:
+      BucketName: !Sub
+        - 'infra-datalake${envSuffix}-${AWS::AccountId}'
+        - envSuffix: !FindInMap [ModeMap, !Ref Mode, ModeSuffix]
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: Product
+          Value: Infra
+        - Key: Environment
+          Value: !Ref Mode
+        - Key: Name
+          Value: DatalakeBucket
+
+  AttachmentsBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    Properties:
+      BucketName: !Sub
+        - 'infra-attachments${envSuffix}-${AWS::AccountId}'
+        - envSuffix: !FindInMap [ModeMap, !Ref Mode, ModeSuffix]
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      NotificationConfiguration:
+        EventBridgeConfiguration:
+          EventBridgeEnabled: true
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders:
+              - '*'
+            AllowedMethods:
+              - HEAD
+              - GET
+              - PUT
+              - POST
+            AllowedOrigins:
+              - '*'
+            ExposedHeaders:
+              - x-amz-server-side-encryption
+              - x-amz-request-id
+              - x-amz-id-2
+              - ETag
+            MaxAge: 3000
+      Tags:
+        - Key: Product
+          Value: Infra
+        - Key: Environment
+          Value: !Ref Mode
+        - Key: Name
+          Value: AttachmentsBucket
+
+  DynamoDBTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub
+        - 'infra${suffix}'
+        - suffix: !FindInMap [ModeMap, !Ref Mode, ModeSuffix]
+      BillingMode: PROVISIONED
+      AttributeDefinitions:
+        - 
+          AttributeName: Pk
+          AttributeType: S
+        - 
+          AttributeName: Sk
+          AttributeType: S
+        - 
+          AttributeName: Gsi1Pk
+          AttributeType: S
+      KeySchema:
+        - 
+          AttributeName: Pk
+          KeyType: HASH
+        - 
+          AttributeName: Sk
+          KeyType: RANGE
+      ProvisionedThroughput:
+        ReadCapacityUnits: 2
+        WriteCapacityUnits: 2
+      GlobalSecondaryIndexes:
+        - 
+          IndexName: gsi1
+          KeySchema:
+            - 
+              AttributeName: Gsi1Pk
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+          ProvisionedThroughput:
+            ReadCapacityUnits: 2
+            WriteCapacityUnits: 2
+      Tags:
+        - Key: Product
+          Value: Infra
+        - Key: Environment
+          Value: !Ref Mode
+        - Key: Name
+          Value: DbTable
+
+Outputs:
+  TableName:
+    Description: DynamoDB table name
+    Value: !Ref DynamoDBTable
+  AttachmentsBucketName:
+    Description: Attachments bucket name
+    Value: !Ref AttachmentsBucket
+  DatalakeBucketName:
+    Description: Datalake bucket name
+    Value: !Ref DatalakeBucket
+  ArtifactsBucketName:
+    Description: Artifacts bucket name
+    Value: !Ref ArtifactsBucket
