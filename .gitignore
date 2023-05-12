@@ -68,6 +68,7 @@ target/
 
 # VS Code
 .vscode/
+.aws-sam/
 
 # Spyder
 .spyproject/

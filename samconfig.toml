@@ -1,0 +1,16 @@
+version=0.1
+[default.deploy.parameters]
+stack_name = "pavimentados-serverless-dev"
+s3_bucket = "project-deployment-templates"
+s3_prefix = "pavimentados"
+region = "us-east-1"
+capabilities = "CAPABILITY_NAMED_IAM"
+parameter_overrides = "Mode=dev InfraTableName=infra-dev AttachmentsBucketName=infra-attachments-dev DatalakeBucketName=infra-datalake-dev ArtifactsBucketName=infra-artifacts-dev"
+
+[prod.deploy.parameters]
+stack_name = "pavimentados-serverless"
+s3_bucket = "project-deployment-templates"
+s3_prefix = "pavimentados"
+region = "us-east-1"
+capabilities = "CAPABILITY_NAMED_IAM"
+parameter_overrides = "Mode=prod InfraTableName=infra AttachmentsBucketName=infra-attachments DatalakeBucketName=infra-datalake ArtifactsBucketName=infra-artifacts"

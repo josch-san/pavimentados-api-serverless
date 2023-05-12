@@ -1,0 +1,352 @@
+openapi: 3.0.1
+info:
+  title:
+    Fn::Sub:
+      - 'pavimentados-api${suffix}'
+      - suffix:
+          Fn::FindInMap: [ModeMap, {Ref: Mode}, ModeSuffix]
+  description: Main API for pavimentados.
+  version: 1.0
+
+paths:
+  /tasks:
+    get:
+      # security:
+      #   - OAuth2UserAuthorizer: []
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        passthroughBehavior: when_no_match
+        credentials:
+          Fn::GetAtt: ApiGatewayRole.Arn
+        uri:
+          Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${TaskMicroserviceFunction.Arn}/invocations
+      # parameters:
+      #   - $ref: '#/components/parameters/offset'
+      #   - $ref: '#/components/parameters/limit'
+      responses:
+        '200':
+          description: Success response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedTasks'
+
+    post:
+      # security:
+      #   - OAuth2UserAuthorizer: []
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        passthroughBehavior: when_no_match
+        credentials:
+          Fn::GetAtt: ApiGatewayRole.Arn
+        uri:
+          Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${TaskMicroserviceFunction.Arn}/invocations
+      x-amazon-apigateway-request-validator: all
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskCreatePayload'
+      responses:
+        '201':
+          description: Success response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+
+  /tasks/{taskId}:
+    get:
+      # security:
+      #   - OAuth2UserAuthorizer: []
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        passthroughBehavior: when_no_match
+        credentials:
+          Fn::GetAtt: ApiGatewayRole.Arn
+        uri:
+          Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${TaskMicroserviceFunction.Arn}/invocations
+      x-amazon-apigateway-request-validator: params-only
+      parameters:
+        - $ref: '#/components/parameters/taskId'
+      responses:
+        '200':
+          description: Success response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+
+    put:
+      # security:
+      #   - OAuth2UserAuthorizer: []
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        passthroughBehavior: when_no_match
+        credentials:
+          Fn::GetAtt: ApiGatewayRole.Arn
+        uri:
+          Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${TaskMicroserviceFunction.Arn}/invocations
+      x-amazon-apigateway-request-validator: all
+      parameters:
+        - $ref: '#/components/parameters/taskId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskInputsUpdatePayload'
+      responses:
+        '200':
+          description: Success response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+
+  #   delete:
+  #     security:
+  #       - OAuth2UserAuthorizer: []
+  #     x-amazon-apigateway-integration:
+  #       type: aws_proxy
+  #       httpMethod: POST
+  #       passthroughBehavior: when_no_match
+  #       credentials:
+  #         Fn::GetAtt: ApiGatewayRole.Arn
+  #       uri:
+  #         Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${TaskMicroserviceFunction.Arn}/invocations
+  #     x-amazon-apigateway-request-validator: params-only
+  #     parameters:
+  #       - $ref: '#/components/parameters/taskId'
+  #     responses:
+  #       '204':
+  #         description: Success response
+
+  # /tasks/{taskId}/generateAttachmentUploadUrl:
+  #   post:
+  #     security:
+  #       - OAuth2UserAuthorizer: []
+  #     x-amazon-apigateway-integration:
+  #       type: aws_proxy
+  #       httpMethod: POST
+  #       passthroughBehavior: when_no_match
+  #       credentials:
+  #         Fn::GetAtt: ApiGatewayRole.Arn
+  #       uri:
+  #         Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${TaskMicroserviceFunction.Arn}/invocations
+  #     x-amazon-apigateway-request-validator: all
+  #     parameters:
+  #       - $ref: '#/components/parameters/taskId'
+  #     requestBody:
+  #       content:
+  #         application/json:
+  #           schema:
+  #             $ref: '#/components/schemas/TaskGenerateAttachmentUploadUrlPayload'
+
+  # /tasks/{taskId}/generateOutputDownloadUrl:
+  #   post:
+  #     security:
+  #       - OAuth2UserAuthorizer: []
+  #     x-amazon-apigateway-integration:
+  #       type: aws_proxy
+  #       httpMethod: POST
+  #       passthroughBehavior: when_no_match
+  #       credentials:
+  #         Fn::GetAtt: ApiGatewayRole.Arn
+  #       uri:
+  #         Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${TaskMicroserviceFunction.Arn}/invocations
+  #     x-amazon-apigateway-request-validator: params-only
+  #     parameters:
+  #       - $ref: '#/components/parameters/taskId'
+  #     requestBody:
+  #       content:
+  #         application/json:
+  #           schema:
+  #             $ref: '#/components/schemas/TaskGenerateOutputDownloadUrlPayload'
+
+  # /tasks/{taskId}/submit:
+  #   post:
+  #     security:
+  #       - OAuth2UserAuthorizer: []
+  #     x-amazon-apigateway-integration:
+  #       type: aws_proxy
+  #       httpMethod: POST
+  #       passthroughBehavior: when_no_match
+  #       credentials:
+  #         Fn::GetAtt: ApiGatewayRole.Arn
+  #       uri:
+  #         Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${TaskMicroserviceFunction.Arn}/invocations
+  #     x-amazon-apigateway-request-validator: params-only
+  #     parameters:
+  #       - $ref: '#/components/parameters/taskId'
+  #     responses:
+  #       '200':
+  #         description: Success response
+  #         content:
+  #           application/json:
+  #             schema:
+  #               $ref: '#/components/schemas/Task'
+
+  # /tasks/{taskId}/cancel:
+  #   post:
+  #     security:
+  #       - OAuth2UserAuthorizer: []
+  #     x-amazon-apigateway-integration:
+  #       type: aws_proxy
+  #       httpMethod: POST
+  #       passthroughBehavior: when_no_match
+  #       credentials:
+  #         Fn::GetAtt: ApiGatewayRole.Arn
+  #       uri:
+  #         Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${TaskMicroserviceFunction.Arn}/invocations
+  #     x-amazon-apigateway-request-validator: params-only
+  #     parameters:
+  #       - $ref: '#/components/parameters/taskId'
+  #     responses:
+  #       '204':
+  #         description: Success response
+
+components:
+  parameters:
+    offset:
+      in: query
+      name: offset
+      required: false
+      schema:
+        type: integer
+        minimum: 0
+      description: The number of items to skip before starting to collect the result set.
+
+    limit:
+      in: query
+      name: limit
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 50
+        default: 20
+      description: The numbers of items to return.
+
+    taskId:
+      in: path
+      name: taskId
+      required: true
+      schema:
+        type: string
+
+  schemas:
+    Pagination:
+      type: object
+      properties:
+        count:
+          type: integer
+        previous:
+          type: string
+        next:
+          type: string
+      required:
+        - count
+
+    TaskCreatePayload:
+      type: object
+      properties:
+        Name:
+          type: string
+        Description:
+          type: string
+        # TaskTypeId:
+        #   type: integer
+        Inputs:
+          type: object
+      required:
+        - TaskTypeId
+
+    TaskInputsUpdatePayload:
+      type: object
+      properties:
+        Name:
+          type: string
+        Description:
+          type: string
+        Inputs:
+          type: object
+
+    TaskOutputsUpdatePayload:
+      type: object
+      properties:
+        TaskStatus:
+          type: string
+        OutputMessage:
+          type: string
+        Outputs:
+          type: object
+
+    Task:
+      type: object
+      properties:
+        Id:
+          type: string
+        Name:
+          type: string
+        Description:
+          type: string
+        UserId:
+          type: integer
+        CreatedAt:
+          type: string
+          format: date-time
+        ModifiedAt:
+          type: string
+          format: date-time
+        TaskStatus:
+          type: string
+        # TaskTypeId:
+        #   type: integer
+        Inputs:
+          type: object
+        OutputMessage:
+          type: string
+        Outputs:
+          type: string
+        AccessLevel:
+          type: string
+        AppServiceSlug:
+          type: string
+
+    PaginatedTasks:
+      allOf:
+        - $ref: '#/components/schemas/Pagination'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/Task'
+          required:
+            - items
+
+    TaskGenerateAttachmentUploadUrlPayload:
+      type: object
+      properties:
+        FieldName:
+          type: string
+        ArrayLength:
+          type: integer
+          minimum: 1
+          maximum: 15
+          default: 1
+        Extension:
+          type: string
+      required:
+        - FieldName
+        - Extension
+
+    TaskGenerateOutputDownloadUrlPayload:
+      type: object
+      properties:
+        FieldName:
+          type: string
