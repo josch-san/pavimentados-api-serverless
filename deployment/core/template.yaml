@@ -112,34 +112,34 @@ Resources:
         - 
           AttributeName: Pk
           AttributeType: S
-        - 
-          AttributeName: Sk
-          AttributeType: S
-        - 
-          AttributeName: Gsi1Pk
-          AttributeType: S
+        # - 
+        #   AttributeName: Sk
+        #   AttributeType: S
+        # - 
+        #   AttributeName: Gsi1Pk
+        #   AttributeType: S
       KeySchema:
         - 
           AttributeName: Pk
           KeyType: HASH
-        - 
-          AttributeName: Sk
-          KeyType: RANGE
+        # - 
+        #   AttributeName: Sk
+        #   KeyType: RANGE
       ProvisionedThroughput:
         ReadCapacityUnits: 2
         WriteCapacityUnits: 2
-      GlobalSecondaryIndexes:
-        - 
-          IndexName: gsi1
-          KeySchema:
-            - 
-              AttributeName: Gsi1Pk
-              KeyType: HASH
-          Projection:
-            ProjectionType: ALL
-          ProvisionedThroughput:
-            ReadCapacityUnits: 2
-            WriteCapacityUnits: 2
+      # GlobalSecondaryIndexes:
+      #   - 
+      #     IndexName: gsi1
+      #     KeySchema:
+      #       - 
+      #         AttributeName: Gsi1Pk
+      #         KeyType: HASH
+      #     Projection:
+      #       ProjectionType: ALL
+      #     ProvisionedThroughput:
+      #       ReadCapacityUnits: 2
+      #       WriteCapacityUnits: 2
       Tags:
         - Key: Product
           Value: Infra

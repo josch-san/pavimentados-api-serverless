@@ -1,4 +1,8 @@
 import boto3
+from boto3.dynamodb.conditions import Attr
+from pydantic import parse_obj_as
+
+from models.Task import Task
 
 
 class TaskRepository:
@@ -6,18 +10,9 @@ class TaskRepository:
         dynamodb = boto3.resource('dynamodb')
         self.table = dynamodb.Table(table_name)
 
-    def list_tasks(self):
-        tasks = [
-            {
-                'id': 1,
-                'name': 'tarea n1',
-                'status': 'draft'
-            },
-            {
-                'id': 2,
-                'name': 'tarea n2',
-                'status': 'queued'
-            }
-        ]
+    def list_tasks(self) -> list[Task]:
+        response = self.table.scan(
+            FilterExpression=Attr('__typename').eq('TASK')
+        )
 
-        return tasks
+        return parse_obj_as(list[Task], response['Items'])
