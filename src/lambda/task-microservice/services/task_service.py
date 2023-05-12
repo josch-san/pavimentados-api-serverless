@@ -1,6 +1,6 @@
-from services.repositories.TaskRepository import TaskRepository
+from services.repositories.task_repository import TaskRepository
 
-from models.Task import Task
+from models.task import Task
 
 
 class TaskService:

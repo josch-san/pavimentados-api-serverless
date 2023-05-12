@@ -12,7 +12,7 @@ paths:
   /tasks:
     get:
       security:
-        - UserPoolAuthorizer: []
+        - user-pool-authorizer: []
       x-amazon-apigateway-integration:
         type: aws_proxy
         httpMethod: POST
@@ -34,7 +34,7 @@ paths:
 
     post:
       security:
-        - UserPoolAuthorizer: []
+        - user-pool-authorizer: []
       x-amazon-apigateway-integration:
         type: aws_proxy
         httpMethod: POST
@@ -60,7 +60,7 @@ paths:
   /tasks/{taskId}:
     get:
       security:
-        - UserPoolAuthorizer: []
+        - user-pool-authorizer: []
       x-amazon-apigateway-integration:
         type: aws_proxy
         httpMethod: POST
@@ -82,7 +82,7 @@ paths:
 
     put:
       security:
-        - UserPoolAuthorizer: []
+        - user-pool-authorizer: []
       x-amazon-apigateway-integration:
         type: aws_proxy
         httpMethod: POST
@@ -109,7 +109,7 @@ paths:
 
   #   delete:
   #     security:
-  #       - UserPoolAuthorizer: []
+  #       - user-pool-authorizer: []
   #     x-amazon-apigateway-integration:
   #       type: aws_proxy
   #       httpMethod: POST
@@ -128,7 +128,7 @@ paths:
   # /tasks/{taskId}/generateAttachmentUploadUrl:
   #   post:
   #     security:
-  #       - UserPoolAuthorizer: []
+  #       - user-pool-authorizer: []
   #     x-amazon-apigateway-integration:
   #       type: aws_proxy
   #       httpMethod: POST
@@ -149,7 +149,7 @@ paths:
   # /tasks/{taskId}/generateOutputDownloadUrl:
   #   post:
   #     security:
-  #       - UserPoolAuthorizer: []
+  #       - user-pool-authorizer: []
   #     x-amazon-apigateway-integration:
   #       type: aws_proxy
   #       httpMethod: POST
@@ -170,7 +170,7 @@ paths:
   # /tasks/{taskId}/submit:
   #   post:
   #     security:
-  #       - UserPoolAuthorizer: []
+  #       - user-pool-authorizer: []
   #     x-amazon-apigateway-integration:
   #       type: aws_proxy
   #       httpMethod: POST
@@ -193,7 +193,7 @@ paths:
   # /tasks/{taskId}/cancel:
   #   post:
   #     security:
-  #       - UserPoolAuthorizer: []
+  #       - user-pool-authorizer: []
   #     x-amazon-apigateway-integration:
   #       type: aws_proxy
   #       httpMethod: POST
@@ -352,7 +352,7 @@ components:
           type: string
 
   securitySchemes:
-    UserPoolAuthorizer:
+    user-pool-authorizer:
       in: header
       type: apiKey
       name: Authorization

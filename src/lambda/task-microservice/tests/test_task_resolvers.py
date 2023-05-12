@@ -3,8 +3,8 @@ from dataclasses import dataclass
 import pytest
 
 os.environ['AWS_DEFAULT_REGION'] = 'us-east-1'
-os.environ['TABLE_NAME'] = 'infra-mock'
-os.environ['API_STAGE'] = 'mock'
+os.environ['TABLE_NAME'] = 'infra-dev'
+os.environ['API_STAGE'] = 'dev'
 
 import sys
 sys.path.append('..')
@@ -28,6 +28,15 @@ def test_list_tasks(lambda_context):
         'path': '/dev/tasks',
         'httpMethod': 'GET',
         'requestContext': {
+            'authorizer': {
+                'claims': {
+                    'sub': '6b456b08-fa1d-4e24-9fbd-be990e023299',
+                    'cognito:username': '6b456b08-fa1d-4e24-9fbd-be990e023299',
+                    'given_name': 'Jose',
+                    'family_name': 'Hernandez',
+                    'email': 'jhernandez@sample.co'
+                }
+            },
             'requestId': '227b78aa-779d-47d4-a48e-ce62120393b8'  # correlation ID
         }
     }

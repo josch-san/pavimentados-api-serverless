@@ -1,7 +1,7 @@
 from aws_lambda_powertools import Tracer
 from aws_lambda_powertools.event_handler.router import APIGatewayRouter
 
-from services.TaskService import TaskService
+from services.task_service import TaskService
 
 tracer = Tracer()
 router = APIGatewayRouter()
@@ -12,5 +12,6 @@ router = APIGatewayRouter()
 def list_tasks():
     task_service = TaskService(router.context.get('table_name'))
 
+    # print(router.current_event.request_context.authorizer.claims['sub'])
     tasks = task_service.list_tasks()
     return tasks

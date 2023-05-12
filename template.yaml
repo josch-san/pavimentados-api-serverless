@@ -43,13 +43,12 @@ Globals:
   Function:
     Timeout: 30
     Runtime: python3.9
-    # Tracing: Active
+    Tracing: Active
     Environment:
       Variables:
         LOG_LEVEL: INFO
         POWERTOOLS_LOGGER_SAMPLE_RATE: 0.1
         POWERTOOLS_LOGGER_LOG_EVENT: true
-        # POWERTOOLS_SERVICE_NAME: example
     Tags:
       Product: Pavimentados
       Environment: !Ref Mode
@@ -90,6 +89,12 @@ Resources:
                 Resource:
                   - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${InfraTableName}'
                   - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${InfraTableName}/*'
+              - 
+                Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource: !Sub 'arn:aws:s3:::${AttachmentsBucketName}/*'
 
   ApiGatewayRole:
     Type: AWS::IAM::Role
@@ -133,7 +138,7 @@ Resources:
           ResourcePath: '/*'
           ThrottlingBurstLimit: 50
           ThrottlingRateLimit: 100
-      # TracingEnabled: true
+      TracingEnabled: true
       Tags:
         Product: Pavimentados
         Environment: !Ref Mode
@@ -151,7 +156,6 @@ Resources:
       ExplicitAuthFlows:
         - ALLOW_REFRESH_TOKEN_AUTH
         - ALLOW_USER_SRP_AUTH
-        # - ALLOW_CUSTOM_AUTH
       RefreshTokenValidity: 30
       SupportedIdentityProviders: [ COGNITO ]
       CallbackURLs: [ https://localhost ]
@@ -178,11 +182,18 @@ Resources:
         - !Sub 'arn:aws:lambda:${AWS::Region}:017000801446:layer:AWSLambdaPowertoolsPythonV2:32'
       Environment:
         Variables:
+          POWERTOOLS_SERVICE_NAME: task-microservice
           TABLE_NAME: !Ref InfraTableName
           API_STAGE: !FindInMap [ModeMap, !Ref Mode, ApiStage]
+          ATTACHMENTS_BUCKET_NAME: !Ref AttachmentsBucketName
 
 
 Outputs:
   WebClientId:
-    Value: !Ref CognitoUserPoolClient
     Description: Cognito user pool web client id
+    Value: !Ref CognitoUserPoolClient
+  ApiUrl:
+    Description: Api base url
+    Value: !Sub
+      - 'https://${PavimentadosApi}.execute-api.${AWS::Region}.amazonaws.com/${apiStage}'
+      - apiStage: !FindInMap [ModeMap, !Ref Mode, ApiStage]

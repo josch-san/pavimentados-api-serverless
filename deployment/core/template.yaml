@@ -221,8 +221,8 @@ Outputs:
     Description: Artifacts bucket name
     Value: !Ref ArtifactsBucket
   UserPoolId:
-    Value: !Ref CognitoUserPool
     Description: Cognito user pool id
+    Value: !Ref CognitoUserPool
   UserPoolDomain:
-    Value: !Sub 'https://${UserPoolDomain}.auth.${AWS::Region}.amazoncognito.com'
     Description: Cognito user pool domain
+    Value: !Sub 'https://${UserPoolDomain}.auth.${AWS::Region}.amazoncognito.com'
