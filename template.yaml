@@ -3,6 +3,9 @@ Transform: AWS::Serverless-2016-10-31
 Description: Pavimentados serverless version
 
 Parameters:
+  UserPoolId:
+    Type: String
+    Description: Cognito user pool id
   InfraTableName:
     Type: String
     Description: DynamoDB table name
@@ -135,6 +138,32 @@ Resources:
         Product: Pavimentados
         Environment: !Ref Mode
 
+  CognitoUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: !Sub
+        - 'pavimentados-web-client${suffix}'
+        - suffix: !FindInMap [ModeMap, !Ref Mode, ModeSuffix]
+      UserPoolId: !Ref UserPoolId
+      GenerateSecret: false
+      EnableTokenRevocation: true
+      PreventUserExistenceErrors: ENABLED
+      ExplicitAuthFlows:
+        - ALLOW_REFRESH_TOKEN_AUTH
+        - ALLOW_USER_SRP_AUTH
+        # - ALLOW_CUSTOM_AUTH
+      RefreshTokenValidity: 30
+      SupportedIdentityProviders: [ COGNITO ]
+      CallbackURLs: [ https://localhost ]
+      LogoutURLs: [ https://localhost ]
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthFlows: 
+        - code
+        - implicit
+      AllowedOAuthScopes:
+        - openid
+        - profile
+
   TaskMicroserviceFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -151,3 +180,9 @@ Resources:
         Variables:
           TABLE_NAME: !Ref InfraTableName
           API_STAGE: !FindInMap [ModeMap, !Ref Mode, ApiStage]
+
+
+Outputs:
+  WebClientId:
+    Value: !Ref CognitoUserPoolClient
+    Description: Cognito user pool web client id

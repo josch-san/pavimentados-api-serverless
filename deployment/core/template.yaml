@@ -148,6 +148,65 @@ Resources:
         - Key: Name
           Value: DbTable
 
+  CognitoUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub
+        - 'infra-user-pool${suffix}'
+        - suffix: !FindInMap [ModeMap, !Ref Mode, ModeSuffix]
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: verified_email
+            Priority: 1
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: true
+        InviteMessageTemplate:
+          EmailMessage: Tu usuario de acceso a infra-core es {username} y la contraseña temporal es {####}
+          EmailSubject: Bienvenido a InfraCore
+      AutoVerifiedAttributes:
+        - email
+      EmailConfiguration:
+        EmailSendingAccount: COGNITO_DEFAULT
+      MfaConfiguration: 'OFF'
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireNumbers: true
+          RequireSymbols: true
+          RequireLowercase: false
+          RequireUppercase: false
+          TemporaryPasswordValidityDays: 7
+      Schema:
+        - Name: given_name
+          AttributeDataType: String
+          Mutable: true
+          Required: true
+        - Name: family_name
+          AttributeDataType: String
+          Mutable: true
+          Required: true
+      UsernameAttributes:
+        - email
+      UsernameConfiguration:
+        CaseSensitive: false
+      VerificationMessageTemplate:
+        DefaultEmailOption: CONFIRM_WITH_CODE
+        EmailMessage: Tu codigo de verificación es {####}.
+        EmailSubject: InfraCore - Código de verificación
+      UserPoolTags:
+        Product: Infra
+        Environment: !Ref Mode
+        Name: UserPool
+
+  UserPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      UserPoolId: !Ref CognitoUserPool
+      Domain: !Sub
+        - 'infra-user-pool${suffix}-${stackReference}'
+        - suffix: !FindInMap [ModeMap, !Ref Mode, ModeSuffix]
+          stackReference: !Select [ 4, !Split [ '-', !Select [ 2, !Split [ '/', !Ref AWS::StackId ] ] ] ]
+
 Outputs:
   TableName:
     Description: DynamoDB table name
@@ -161,3 +220,9 @@ Outputs:
   ArtifactsBucketName:
     Description: Artifacts bucket name
     Value: !Ref ArtifactsBucket
+  UserPoolId:
+    Value: !Ref CognitoUserPool
+    Description: Cognito user pool id
+  UserPoolDomain:
+    Value: !Sub 'https://${UserPoolDomain}.auth.${AWS::Region}.amazoncognito.com'
+    Description: Cognito user pool domain
