@@ -3,6 +3,9 @@ Transform: AWS::Serverless-2016-10-31
 Description: Pavimentados serverless version
 
 Parameters:
+  UserPoolId:
+    Type: String
+    Description: Cognito user pool id
   InfraTableName:
     Type: String
     Description: DynamoDB table name
@@ -40,13 +43,12 @@ Globals:
   Function:
     Timeout: 30
     Runtime: python3.9
-    # Tracing: Active
+    Tracing: Active
     Environment:
       Variables:
         LOG_LEVEL: INFO
         POWERTOOLS_LOGGER_SAMPLE_RATE: 0.1
         POWERTOOLS_LOGGER_LOG_EVENT: true
-        # POWERTOOLS_SERVICE_NAME: example
     Tags:
       Product: Pavimentados
       Environment: !Ref Mode
@@ -70,6 +72,7 @@ Resources:
             Action: sts:AssumeRole
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::aws:policy/AWSXRayDaemonWriteAccess
       Policies:
         - PolicyName: infra-lambda-policy
           PolicyDocument:
@@ -87,6 +90,12 @@ Resources:
                 Resource:
                   - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${InfraTableName}'
                   - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${InfraTableName}/*'
+              - 
+                Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource: !Sub 'arn:aws:s3:::${AttachmentsBucketName}/*'
 
   ApiGatewayRole:
     Type: AWS::IAM::Role
@@ -130,10 +139,35 @@ Resources:
           ResourcePath: '/*'
           ThrottlingBurstLimit: 50
           ThrottlingRateLimit: 100
-      # TracingEnabled: true
+      TracingEnabled: true
       Tags:
         Product: Pavimentados
         Environment: !Ref Mode
+
+  CognitoUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: !Sub
+        - 'pavimentados-web-client${suffix}'
+        - suffix: !FindInMap [ModeMap, !Ref Mode, ModeSuffix]
+      UserPoolId: !Ref UserPoolId
+      GenerateSecret: false
+      EnableTokenRevocation: true
+      PreventUserExistenceErrors: ENABLED
+      ExplicitAuthFlows:
+        - ALLOW_REFRESH_TOKEN_AUTH
+        - ALLOW_USER_SRP_AUTH
+      RefreshTokenValidity: 30
+      SupportedIdentityProviders: [ COGNITO ]
+      CallbackURLs: [ https://localhost ]
+      LogoutURLs: [ https://localhost ]
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthFlows: 
+        - code
+        - implicit
+      AllowedOAuthScopes:
+        - openid
+        - profile
 
   TaskMicroserviceFunction:
     Type: AWS::Serverless::Function
@@ -149,5 +183,18 @@ Resources:
         - !Sub 'arn:aws:lambda:${AWS::Region}:017000801446:layer:AWSLambdaPowertoolsPythonV2:32'
       Environment:
         Variables:
+          POWERTOOLS_SERVICE_NAME: task-microservice
           TABLE_NAME: !Ref InfraTableName
           API_STAGE: !FindInMap [ModeMap, !Ref Mode, ApiStage]
+          ATTACHMENTS_BUCKET_NAME: !Ref AttachmentsBucketName
+
+
+Outputs:
+  WebClientId:
+    Description: Cognito user pool web client id
+    Value: !Ref CognitoUserPoolClient
+  ApiUrl:
+    Description: Api base url
+    Value: !Sub
+      - 'https://${PavimentadosApi}.execute-api.${AWS::Region}.amazonaws.com/${apiStage}'
+      - apiStage: !FindInMap [ModeMap, !Ref Mode, ApiStage]

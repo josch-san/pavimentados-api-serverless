@@ -11,8 +11,8 @@ info:
 paths:
   /tasks:
     get:
-      # security:
-      #   - OAuth2UserAuthorizer: []
+      security:
+        - user-pool-authorizer: []
       x-amazon-apigateway-integration:
         type: aws_proxy
         httpMethod: POST
@@ -33,8 +33,8 @@ paths:
                 $ref: '#/components/schemas/PaginatedTasks'
 
     post:
-      # security:
-      #   - OAuth2UserAuthorizer: []
+      security:
+        - user-pool-authorizer: []
       x-amazon-apigateway-integration:
         type: aws_proxy
         httpMethod: POST
@@ -59,8 +59,8 @@ paths:
 
   /tasks/{taskId}:
     get:
-      # security:
-      #   - OAuth2UserAuthorizer: []
+      security:
+        - user-pool-authorizer: []
       x-amazon-apigateway-integration:
         type: aws_proxy
         httpMethod: POST
@@ -81,8 +81,8 @@ paths:
                 $ref: '#/components/schemas/Task'
 
     put:
-      # security:
-      #   - OAuth2UserAuthorizer: []
+      security:
+        - user-pool-authorizer: []
       x-amazon-apigateway-integration:
         type: aws_proxy
         httpMethod: POST
@@ -109,7 +109,7 @@ paths:
 
   #   delete:
   #     security:
-  #       - OAuth2UserAuthorizer: []
+  #       - user-pool-authorizer: []
   #     x-amazon-apigateway-integration:
   #       type: aws_proxy
   #       httpMethod: POST
@@ -128,7 +128,7 @@ paths:
   # /tasks/{taskId}/generateAttachmentUploadUrl:
   #   post:
   #     security:
-  #       - OAuth2UserAuthorizer: []
+  #       - user-pool-authorizer: []
   #     x-amazon-apigateway-integration:
   #       type: aws_proxy
   #       httpMethod: POST
@@ -149,7 +149,7 @@ paths:
   # /tasks/{taskId}/generateOutputDownloadUrl:
   #   post:
   #     security:
-  #       - OAuth2UserAuthorizer: []
+  #       - user-pool-authorizer: []
   #     x-amazon-apigateway-integration:
   #       type: aws_proxy
   #       httpMethod: POST
@@ -170,7 +170,7 @@ paths:
   # /tasks/{taskId}/submit:
   #   post:
   #     security:
-  #       - OAuth2UserAuthorizer: []
+  #       - user-pool-authorizer: []
   #     x-amazon-apigateway-integration:
   #       type: aws_proxy
   #       httpMethod: POST
@@ -193,7 +193,7 @@ paths:
   # /tasks/{taskId}/cancel:
   #   post:
   #     security:
-  #       - OAuth2UserAuthorizer: []
+  #       - user-pool-authorizer: []
   #     x-amazon-apigateway-integration:
   #       type: aws_proxy
   #       httpMethod: POST
@@ -350,3 +350,24 @@ components:
       properties:
         FieldName:
           type: string
+
+  securitySchemes:
+    user-pool-authorizer:
+      in: header
+      type: apiKey
+      name: Authorization
+      x-amazon-apigateway-authtype: cognito_user_pools
+      x-amazon-apigateway-authorizer:
+        type: cognito_user_pools
+        providerARNs:
+          - Fn::Sub: arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${UserPoolId}
+
+x-amazon-apigateway-request-validators:
+  params-only:
+    validateRequestBody: false
+    validateRequestParameters: true
+  all:
+    validateRequestBody: true
+    validateRequestParameters: true
+
+x-amazon-apigateway-request-validator: params-only

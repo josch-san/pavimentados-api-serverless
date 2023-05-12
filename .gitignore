@@ -68,7 +68,6 @@ target/
 
 # VS Code
 .vscode/
-.aws-sam/
 
 # Spyder
 .spyproject/
@@ -91,3 +90,7 @@ _build/
 
 # python-dotenv
 .env
+
+# AWS SAM
+.aws-sam/
+samconfig.toml

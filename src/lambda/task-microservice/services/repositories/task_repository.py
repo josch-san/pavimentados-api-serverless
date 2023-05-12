@@ -2,7 +2,7 @@ import boto3
 from boto3.dynamodb.conditions import Attr
 from pydantic import parse_obj_as
 
-from models.Task import Task
+from models.task import Task
 
 
 class TaskRepository:
