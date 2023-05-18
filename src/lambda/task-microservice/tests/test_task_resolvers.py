@@ -4,6 +4,8 @@ import pytest
 
 os.environ['AWS_DEFAULT_REGION'] = 'us-east-1'
 os.environ['TABLE_NAME'] = 'infra-dev'
+os.environ['ATTACHMENTS_BUCKET_NAME'] = 'bucket-dev'
+os.environ['TASK_QUEUE_URL'] = 'pavimentados-queue-dev'
 os.environ['API_STAGE'] = 'dev'
 
 import sys

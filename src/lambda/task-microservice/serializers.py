@@ -13,7 +13,7 @@ class CustomEncoder(JSONEncoder):
         if isinstance(obj, (datetime)):
             return obj.replace(tzinfo=None).isoformat(timespec='milliseconds')
         if isinstance(obj, BaseModel):
-            return obj.dict()
+            return obj.dict(by_alias=True)
         return super().default(obj)
 
 

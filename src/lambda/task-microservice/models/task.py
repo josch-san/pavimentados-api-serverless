@@ -1,26 +1,10 @@
-from enum import Enum
-from datetime import datetime
-from uuid import UUID, uuid4
 from typing import Optional, Literal, Annotated, Union
 
 from pydantic import BaseModel, Field, constr
 
+from .base_task import BaseTask
 from models.s3_object import InputS3ItemContent, InputS3ArrayContent, OutputS3ItemContent
 
-
-class TaskStatusEnum(str, Enum):
-    DRAFT = 'draft'
-    QUEUED = 'queued'
-    REQUESTING = 'requesting'
-    PROCESSING = 'processing'
-    COMPLETED = 'completed'
-    FAILED = 'failed'
-    CANCELED = 'canceled'
-
-
-class AccessLevelEnum(str, Enum):
-    USER = 'user'
-    APP = 'app'
 
 
 class ImageBundleInput(BaseModel):
@@ -70,16 +54,7 @@ class PavimentadosTaskOutput(BaseModel):
     Sections: OutputS3ItemContent
 
 
-class Task(BaseModel):
-    Id: UUID = Field(default_factory=uuid4)
-    Name: str
-    Description: Optional[str]
-    UserId: UUID
-    CreatedAt: datetime = Field(default_factory=datetime.utcnow)
-    ModifiedAt: datetime = Field(default_factory=datetime.utcnow)
-    AppServiceSlug: Literal['pavimenta2#road_sections_inference']
-    TaskStatus: TaskStatusEnum = TaskStatusEnum.DRAFT
-    AccessLevel: AccessLevelEnum = AccessLevelEnum.APP
+class Task(BaseTask):
+    AppServiceSlug: str = Field('pavimenta2#road_sections_inference', const=True)
     Inputs: PavimentadosTaskInput
     Outputs: Optional[PavimentadosTaskOutput]
-    OutputMessage: Optional[str]

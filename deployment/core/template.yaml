@@ -16,6 +16,8 @@ Mappings:
   ModeMap:
     dev:
       ModeSuffix: -dev
+    test:
+      ModeSuffix: -test
     prod:
       ModeSuffix: ''
 
