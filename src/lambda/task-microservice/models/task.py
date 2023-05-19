@@ -26,7 +26,7 @@ class ImageBundleInput(BaseModel):
     Type: Literal['image_bundle']
 
     def __init__(self, **kwargs):
-        kwargs.setdefault('ImageBundle', kwargs.get('_S3BaseContent'))
+        kwargs.setdefault('ImageBundle', [deepcopy(kwargs.get('_S3BaseContent'))])
         super().__init__(**kwargs)
 
 
@@ -37,7 +37,7 @@ class ImageBundleGpsInput(BaseModel):
     Type: Literal['image_bundle_gps']
 
     def __init__(self, **kwargs):
-        kwargs.setdefault('ImageBundle', kwargs.get('_S3BaseContent'))
+        kwargs.setdefault('ImageBundle', [deepcopy(kwargs.get('_S3BaseContent'))])
         kwargs.setdefault('GpsFile', deepcopy(kwargs.get('_S3BaseContent')))
         super().__init__(**kwargs)
 
@@ -49,7 +49,7 @@ class VideoGpsInput(BaseModel):
     Type: Literal['video_gps']
 
     def __init__(self, **kwargs):
-        kwargs.setdefault('VideoFile', kwargs.get('_S3BaseContent'))
+        kwargs.setdefault('VideoFile', deepcopy(kwargs.get('_S3BaseContent')))
         kwargs.setdefault('GpsFile', deepcopy(kwargs.get('_S3BaseContent')))
         super().__init__(**kwargs)
 

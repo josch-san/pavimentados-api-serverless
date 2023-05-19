@@ -30,3 +30,10 @@ class InputS3ItemContent(BaseModel):
 class InputS3ArrayContent(BaseModel):
     Extension: str
     Content: list[FlaggedS3ObjectReference]
+
+    @validator('Content', pre=True, always=True)
+    def set_content(cls, content, values):
+        if not content[0]['Key'].endswith(values['Extension']):
+            file_name = f'{cls.__name__}_{datetime.utcnow():%Y%m%d%H%M%S}_00.{values["Extension"]}'
+            content[0]['Key'] = '/'.join([content[0]['Key'], file_name])
+        return content
