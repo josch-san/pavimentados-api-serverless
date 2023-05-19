@@ -28,7 +28,8 @@ def create_task():
 
     task = task_service.create_task(
         router.current_event.json_body,
-        router.current_event.request_context.authorizer.claims['sub']
+        router.current_event.request_context.authorizer.claims['sub'],
+        router.context.get('attachments_bucket_name')
     )
 
     queue_service.send_message(task.build_sqs_message())

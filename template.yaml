@@ -120,8 +120,7 @@ Resources:
               - 
                 Effect: Allow
                 Action: lambda:InvokeFunction
-                Resource:
-                  - !GetAtt TaskMicroserviceFunction.Arn
+                Resource: !GetAtt TaskMicroserviceFunction.Arn
 
   PavimentadosApi:
     Type: AWS::Serverless::Api
@@ -169,6 +168,13 @@ Resources:
         - openid
         - profile
 
+  InferenceQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub
+        - 'pavimentados-inference-queue${suffix}'
+        - suffix: !FindInMap [ModeMap, !Ref Mode, ModeSuffix]
+
   TaskMicroserviceFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -187,6 +193,7 @@ Resources:
           TABLE_NAME: !Ref InfraTableName
           API_STAGE: !FindInMap [ModeMap, !Ref Mode, ApiStage]
           ATTACHMENTS_BUCKET_NAME: !Ref AttachmentsBucketName
+          TASK_QUEUE_URL: !GetAtt InferenceQueue.QueueUrl
 
 
 Outputs:

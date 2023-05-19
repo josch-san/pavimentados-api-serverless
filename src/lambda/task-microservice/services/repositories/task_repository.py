@@ -17,7 +17,9 @@ class TaskRepository:
 
         return parse_obj_as(list[Task], response['Items'])
 
-    def create_task(self, form: dict, user_id:str) -> Task:
-        task = Task.parse_obj({**form, 'UserId': user_id})
+    def create_task(self, form: dict, bucket_name: str) -> Task:
+        inputs = form.pop('Inputs')
+        task = Task.parse_obj(form)
 
+        task.initialize_inputs(inputs, bucket_name)
         self.table.put_item(Item=task.dynamodb_record)

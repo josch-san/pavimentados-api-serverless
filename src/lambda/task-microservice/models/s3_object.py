@@ -1,9 +1,5 @@
-from typing import Generic, TypeVar
-
-from pydantic import BaseModel
-from pydantic.generics import GenericModel
-
-ExtensionT = TypeVar('ExtensionT')
+from datetime import datetime
+from pydantic import BaseModel, validator
 
 
 class S3ObjectReference(BaseModel):
@@ -19,15 +15,18 @@ class OutputS3ItemContent(BaseModel):
     Content: S3ObjectReference
 
 
-class InputS3ItemContent(GenericModel, Generic[ExtensionT]):
-# class InputS3ItemContent(BaseModel):
-    Extension: ExtensionT
-    # Extension: str
+class InputS3ItemContent(BaseModel):
+    Extension: str
     Content: FlaggedS3ObjectReference
 
+    @validator('Content', pre=True, always=True)
+    def set_content(cls, content, values):
+        if not content['Key'].endswith(values['Extension']):
+            file_name = f'{cls.__name__}_{datetime.utcnow():%Y%m%d%H%M%S}.{values["Extension"]}'
+            content['Key'] = '/'.join([content['Key'], file_name])
+        return content
 
-class InputS3ArrayContent(GenericModel, Generic[ExtensionT]):
-# class InputS3ArrayContent(BaseModel):
-    Extension: ExtensionT
-    # Extension: str
+
+class InputS3ArrayContent(BaseModel):
+    Extension: str
     Content: list[FlaggedS3ObjectReference]

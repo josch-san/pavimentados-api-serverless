@@ -33,12 +33,13 @@ class BaseTask(BaseModel):
     TaskStatus: TaskStatusEnum = TaskStatusEnum.DRAFT
     AccessLevel: AccessLevelEnum = AccessLevelEnum.APP
     AppServiceSlug: str
-    Inputs: dict
+    Inputs: Optional[dict]
     Outputs: Optional[dict]
     OutputMessage: Optional[str]
 
     class Config:
         extra = 'ignore'
+        validate_assignment = True
         # alias_generator = to_camel
 
     @staticmethod
