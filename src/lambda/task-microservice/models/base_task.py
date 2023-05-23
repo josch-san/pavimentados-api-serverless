@@ -47,19 +47,19 @@ class BaseTask(BaseModel):
             datetime: lambda v: v.replace(tzinfo=None).isoformat(timespec='milliseconds') + 'Z'
         }
 
-    def raw_dict(self):
+    def raw_dict(self) -> dict:
         # It's messy I know but it's the best I can do right now.
         return json.loads(self.json(by_alias=True))
 
     @staticmethod
-    def build_dynamodb_key(task_id):
+    def build_dynamodb_key(task_id: str) -> dict:
         return {
             'Pk': 'TASK#{}'.format(task_id),
             # 'Sk': 'metadata'
         }
 
     @property
-    def dynamodb_key(self):
+    def dynamodb_key(self) -> dict:
         return self.build_dynamodb_key(self.Id)
 
     @property

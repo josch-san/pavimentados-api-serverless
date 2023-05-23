@@ -20,5 +20,5 @@ def test_create_task():
     user_id = '2ecf2bb8-c700-4073-9d48-2745815dcd0d'
     bucket = 'infra-attachments-dev-195419001736'
 
-    task = task_service.create_task(form, user_id, bucket)
+    task = task_service.create(form, user_id, bucket)
     print(task)

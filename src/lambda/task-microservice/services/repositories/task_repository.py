@@ -25,3 +25,10 @@ class TaskRepository:
         self.table.put_item(Item=task.dynamodb_record)
 
         return task
+
+    def get_task(self, task_id: str) -> Task:
+        response = self.table.get_item(
+            Key=Task.build_dynamodb_key(task_id)
+        )
+
+        return Task.parse_obj(response['Item'])

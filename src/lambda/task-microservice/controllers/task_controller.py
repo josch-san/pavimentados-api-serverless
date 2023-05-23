@@ -14,7 +14,7 @@ router = APIGatewayRouter()
 def list_tasks():
     task_service = TaskService(router.context.get('table_name'))
 
-    tasks = task_service.list_tasks()
+    tasks = task_service.list()
     return {
         'items': tasks
     }
@@ -26,7 +26,7 @@ def create_task():
     task_service = TaskService(router.context.get('table_name'))
     queue_service = QueueService(router.context.get('queue_url'))
 
-    task = task_service.create_task(
+    task = task_service.create(
         router.current_event.json_body,
         router.current_event.request_context.authorizer.claims['sub'],
         router.context.get('attachments_bucket_name')
@@ -34,3 +34,11 @@ def create_task():
 
     queue_service.send_message(task.build_sqs_message())
     return task, HTTPStatus.ACCEPTED
+
+
+@router.get('/<taskId>')
+@tracer.capture_method
+def retrieve_task(taskId: str):
+    task_service = TaskService(router.context.get('table_name'))
+
+    return task_service.retrieve(taskId)

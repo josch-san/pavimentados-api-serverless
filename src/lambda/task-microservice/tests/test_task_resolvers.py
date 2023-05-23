@@ -12,23 +12,11 @@ import sys
 sys.path.append('..')
 import app
 
-
-@pytest.fixture
-def lambda_context():
-    @dataclass
-    class LambdaContext:
-        function_name: str = 'task-microservice'
-        memory_limit_in_mb: int = 128
-        invoked_function_arn: str = 'arn:aws:lambda:eu-east-1:123456789012:function:task-microservice-mock'
-        aws_request_id: str = 'da658bd3-2d6f-4e7b-8ec2-937234644fdc'
-
-    return LambdaContext()
-
-
-def test_list_tasks(lambda_context):
-    minimal_event = {
-        'path': '/dev/tasks',
-        'httpMethod': 'GET',
+# Example of API Gateway REST API request event:
+# https://docs.aws.amazon.com/lambda/latest/dg/services-apigateway.html#apigateway-example-event
+EVENT_TEMPLATE = {
+        # 'path': '/dev/tasks',
+        # 'httpMethod': 'GET',
         'requestContext': {
             'authorizer': {
                 'claims': {
@@ -43,9 +31,49 @@ def test_list_tasks(lambda_context):
         }
     }
 
-    # Example of API Gateway REST API request event:
-    # https://docs.aws.amazon.com/lambda/latest/dg/services-apigateway.html#apigateway-example-event
-    ret = app.lambda_handler(minimal_event, lambda_context)
 
-    assert ret['statusCode'] == 200
-    assert type(ret['body']) == str
+@pytest.fixture
+def lambda_context():
+    @dataclass
+    class LambdaContext:
+        function_name: str = 'task-microservice'
+        memory_limit_in_mb: int = 128
+        invoked_function_arn: str = 'arn:aws:lambda:eu-east-1:123456789012:function:task-microservice-mock'
+        aws_request_id: str = 'da658bd3-2d6f-4e7b-8ec2-937234644fdc'
+
+    return LambdaContext()
+
+
+def test_list_tasks(lambda_context):
+    minimal_rest_event = {
+        **EVENT_TEMPLATE,
+        'path': '/dev/tasks',
+        'httpMethod': 'GET'
+    }
+
+    response = app.lambda_handler(minimal_rest_event, lambda_context)
+
+    assert response['statusCode'] == 200
+
+
+def test_retrieve_task(lambda_context):
+    minimal_rest_event = {
+        **EVENT_TEMPLATE,
+        'path': '/dev/tasks/db4e6a6c-d768-4b43-ad8c-99b579c8c23b',
+        'httpMethod': 'GET'
+    }
+
+    response = app.lambda_handler(minimal_rest_event, lambda_context)
+    assert response['statusCode'] == 200
+
+
+def test_retrieve_task_404(lambda_context):
+    # This task_id doesn't exists in db.
+    minimal_rest_event = {
+        **EVENT_TEMPLATE,
+        'path': '/dev/tasks/a52bc1e1-9f2e-48ab-98f2-b5e4cc059154',
+        'httpMethod': 'GET'
+    }
+
+    response = app.lambda_handler(minimal_rest_event, lambda_context)
+    assert response['statusCode'] == 404
