@@ -23,3 +23,5 @@ class TaskRepository:
 
         task.initialize_inputs(inputs, bucket_name)
         self.table.put_item(Item=task.dynamodb_record)
+
+        return task

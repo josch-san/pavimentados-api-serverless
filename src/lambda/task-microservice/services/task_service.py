@@ -5,6 +5,7 @@ from models.task import Task
 
 logger = Logger(child=True)
 
+
 class TaskService:
     def __init__(self, table_name: str):
         self.repository = TaskRepository(table_name)
@@ -14,9 +15,10 @@ class TaskService:
 
     def create_task(self, form: dict, user_id: str, bucket_name: str) -> Task:
         form['UserId'] = user_id
+
         try:
             task = self.repository.create_task(form, bucket_name)
-        except Exception as er:
-            logger.error(er.errors())
-        
+        except Exception as e:
+            logger.error(e.errors())
+
         return task

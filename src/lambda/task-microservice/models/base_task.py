@@ -1,3 +1,4 @@
+import json
 from enum import Enum
 from datetime import datetime
 from uuid import UUID, uuid4
@@ -41,6 +42,14 @@ class BaseTask(BaseModel):
         extra = 'ignore'
         validate_assignment = True
         # alias_generator = to_camel
+        json_encoders = {
+            UUID: lambda v: str(v),
+            datetime: lambda v: v.replace(tzinfo=None).isoformat(timespec='milliseconds') + 'Z'
+        }
+
+    def raw_dict(self):
+        # It's messy I know but it's the best I can do right now.
+        return json.loads(self.json(by_alias=True))
 
     @staticmethod
     def build_dynamodb_key(task_id):
@@ -57,13 +66,14 @@ class BaseTask(BaseModel):
     def dynamodb_record(self) -> dict:
         return {
             **self.dynamodb_key,
-            **self.dict(by_alias=True),
+            **self.raw_dict(),
+            '__typename': 'TASK'
             # 'Gsi1Pk': 'TASK'
         }
 
     def build_sqs_message(self) -> dict:
         return {
             **self.dynamodb_key,
-            **self.dict(by_alias=True),
+            **self.raw_dict(),
             # 'Gsi1Pk': 'TASK'
         }
