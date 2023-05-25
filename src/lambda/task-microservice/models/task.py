@@ -89,17 +89,50 @@ class Task(BaseTask):
     Inputs: Optional[PavimentadosTaskInput]
     Outputs: Optional[PavimentadosTaskOutput]
 
-    def initialize_inputs(self, inputs: dict, bucket_name: str) -> None:
+    @property
+    def s3_key_path(self):
         application, service = self.AppServiceSlug.split('#')
+        return f'{application}/user:{self.UserId}/{service}/{self.Id}/inputs'
+
+    def initialize_inputs(self, inputs: dict, bucket_name: str) -> None:
         s3_base_path = {
             'Bucket': bucket_name,
-            'Key': '/'.join([
-                application,
-                'user:{}'.format(self.UserId),
-                service,
-                str(self.Id),
-                'inputs'
-            ])
+            'Key': self.s3_key_path
         }
 
         self.Inputs = {**inputs, '_S3BaseContent': s3_base_path}
+
+    def update_attachment_input(self, payload: dict, bucket_name: str) -> None:
+        attachment_field = getattr(self.Inputs, payload['FieldName'])
+
+        if isinstance(attachment_field, InputS3ItemContent):
+            if payload.get('ArrayLength', 1) != 1:
+                raise Exception(f"Field '{payload['FieldName']}' can only handle one attachment.")
+
+            attachment_field.Content = {
+                'Bucket': bucket_name,
+                'Key': '/'.join([
+                    self.s3_key_path,
+                    attachment_field.build_file_name(payload['Extension'])
+                ]),
+                'Uploaded': False
+            }
+
+        elif isinstance(attachment_field, InputS3ArrayContent):
+            attachment_field.Content = [
+                {
+                    'Bucket': bucket_name,
+                    'Key': '/'.join([
+                        self.s3_key_path,
+                        attachment_field.build_indexed_file_name(payload['Extension'], index)
+                    ]),
+                    'Uploaded': False
+                }
+                for index in range(payload.get('ArrayLength', 1))
+            ]
+
+        else:
+            raise Exception(f"Field '{payload['FieldName']}' is not available to upload attachments.")
+
+        attachment_field.Extension = payload['Extension']
+        setattr(self.Inputs, payload['FieldName'], attachment_field)

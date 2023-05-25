@@ -32,3 +32,26 @@ class TaskRepository:
         )
 
         return Task.parse_obj(response['Item'])
+    
+    def update_partial_inputs(self, task: Task, fields: list[str]) -> Task:
+        update_expression = []
+        attribute_names = {}
+        attribute_values = {}
+
+        raw_task = task.raw_dict()
+        for index, field_key in enumerate(fields):
+            key_expression = f'#key{index:02}'
+            value_expression = f':value{index:02}'
+
+            attribute_names[key_expression] = field_key
+            attribute_values[value_expression] = raw_task['Inputs'][field_key]
+            update_expression.append(f'Inputs.{key_expression} = {value_expression}')
+
+        self.table.update_item(
+            Key=task.dynamodb_key,
+            UpdateExpression=f'SET {", ".join(update_expression)}',
+            ExpressionAttributeNames=attribute_names,
+            ExpressionAttributeValues=attribute_values
+        )
+
+        return task

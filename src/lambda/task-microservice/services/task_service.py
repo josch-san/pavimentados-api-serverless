@@ -1,10 +1,13 @@
 from aws_lambda_powertools import Logger
 from aws_lambda_powertools.event_handler.exceptions import (
-    NotFoundError
+    NotFoundError,
+    BadRequestError,
+    UnauthorizedError
 )
 
 from services.repositories.task_repository import TaskRepository
 from models.task import Task
+from models.base_task import TaskStatusEnum
 
 logger = Logger(child=True)
 
@@ -33,3 +36,24 @@ class TaskService:
             raise NotFoundError
 
         return task
+
+    def update_attachment_input(self, task_id: str, body: dict, user_id: str, bucket_name: str):
+        task = self.retrieve(task_id)
+
+        if str(task.UserId) != user_id:
+            raise UnauthorizedError("You are not authorized to modify task '{}'".format(task_id))
+
+        if task.TaskStatus != TaskStatusEnum.DRAFT:
+            raise BadRequestError("Cannot generate signed urls for task '{}' because is not in status 'draft'.".format(task_id))
+
+        try:
+            task.update_attachment_input(body, bucket_name)
+
+        except AttributeError:
+            raise BadRequestError("Field '{}' is not available to upload attachments in task '{}'.".format(body['FieldName'], task_id))
+
+        except Exception as e:
+            raise BadRequestError(e)
+
+        self.repository.update_partial_inputs(task, [body['FieldName']])
+        return getattr(task.Inputs, body['FieldName']).Content

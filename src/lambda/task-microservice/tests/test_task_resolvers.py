@@ -77,3 +77,21 @@ def test_retrieve_task_404(lambda_context):
 
     response = app.lambda_handler(minimal_rest_event, lambda_context)
     assert response['statusCode'] == 404
+
+
+def test_generate_attachment_upload_url_unauthorized(lambda_context):
+    payload = {
+        'FieldName': 'VideoFile',
+        'ArrayLength': 1,
+        'Extension': 'mp4'
+    }
+
+    minimal_rest_event = {
+        **EVENT_TEMPLATE,
+        'path': '/dev/tasks/69688b53-960b-45f8-9b03-476e73148b06/generateAttachmentUploadUrl',
+        'httpMethod': 'POST',
+        'body': json.dumps(payload)
+    }
+
+    response = app.lambda_handler(minimal_rest_event, lambda_context)
+    assert response['statusCode'] == 401
