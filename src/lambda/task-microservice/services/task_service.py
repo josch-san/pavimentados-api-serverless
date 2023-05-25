@@ -5,9 +5,10 @@ from aws_lambda_powertools.event_handler.exceptions import (
     UnauthorizedError
 )
 
-from services.repositories.task_repository import TaskRepository
 from models.task import Task
+from models.s3_object import InputS3Content
 from models.base_task import TaskStatusEnum
+from services.repositories.task_repository import TaskRepository
 
 logger = Logger(child=True)
 
@@ -37,7 +38,7 @@ class TaskService:
 
         return task
 
-    def update_attachment_input(self, task_id: str, body: dict, user_id: str, bucket_name: str):
+    def update_attachment_input(self, task_id: str, body: dict, user_id: str, bucket_name: str) -> InputS3Content:
         task = self.retrieve(task_id)
 
         if str(task.UserId) != user_id:

@@ -1,6 +1,6 @@
 import boto3
 
-sqs = boto3.client('sqs')
+sqs_client = boto3.client('sqs')
 
 
 class QueueService:
@@ -8,7 +8,7 @@ class QueueService:
         self.queue_url = queue_url
 
     def send_message(self, body: str):
-        return sqs.send_message(
+        return sqs_client.send_message(
             QueueUrl=self.queue_url,
             MessageBody=body
         )

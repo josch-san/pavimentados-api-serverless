@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 
 
 from .base_task import BaseTask
-from .s3_object import InputS3ItemContent, InputS3ArrayContent, OutputS3ItemContent
+from .s3_object import InputS3Content, InputS3ItemContent, InputS3ArrayContent, OutputS3ItemContent
 
 
 class GpsFile(InputS3ItemContent):
@@ -105,7 +105,10 @@ class Task(BaseTask):
     def update_attachment_input(self, payload: dict, bucket_name: str) -> None:
         attachment_field = getattr(self.Inputs, payload['FieldName'])
 
-        if isinstance(attachment_field, InputS3ItemContent):
+        if not isinstance(attachment_field, InputS3Content):
+            raise Exception(f"Field '{payload['FieldName']}' is not available to upload attachments.")
+
+        if not attachment_field.is_array:
             if payload.get('ArrayLength', 1) != 1:
                 raise Exception(f"Field '{payload['FieldName']}' can only handle one attachment.")
 
@@ -118,7 +121,7 @@ class Task(BaseTask):
                 'Uploaded': False
             }
 
-        elif isinstance(attachment_field, InputS3ArrayContent):
+        else:
             attachment_field.Content = [
                 {
                     'Bucket': bucket_name,
@@ -130,9 +133,6 @@ class Task(BaseTask):
                 }
                 for index in range(payload.get('ArrayLength', 1))
             ]
-
-        else:
-            raise Exception(f"Field '{payload['FieldName']}' is not available to upload attachments.")
 
         attachment_field.Extension = payload['Extension']
         setattr(self.Inputs, payload['FieldName'], attachment_field)

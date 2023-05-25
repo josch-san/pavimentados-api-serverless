@@ -1,4 +1,6 @@
 from datetime import datetime
+from typing import Union
+
 from pydantic import BaseModel, validator
 
 
@@ -15,7 +17,16 @@ class OutputS3ItemContent(BaseModel):
     Content: S3ObjectReference
 
 
-class InputS3ItemContent(BaseModel):
+class InputS3Content(BaseModel):
+    Extension: str
+    Content: Union[FlaggedS3ObjectReference, list[FlaggedS3ObjectReference]]
+
+    @property
+    def is_array(self):
+        return isinstance(self.Content, list)
+
+
+class InputS3ItemContent(InputS3Content):
     Extension: str
     Content: FlaggedS3ObjectReference
 
@@ -36,7 +47,7 @@ class InputS3ItemContent(BaseModel):
         return content
 
 
-class InputS3ArrayContent(BaseModel):
+class InputS3ArrayContent(InputS3Content):
     Extension: str
     Content: list[FlaggedS3ObjectReference]
 
