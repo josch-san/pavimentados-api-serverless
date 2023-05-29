@@ -4,10 +4,11 @@ from pydantic import parse_obj_as
 
 from models.task import Task
 
+dynamodb = boto3.resource('dynamodb')
+
 
 class TaskRepository:
     def __init__(self, table_name: str):
-        dynamodb = boto3.resource('dynamodb')
         self.table = dynamodb.Table(table_name)
 
     def list_tasks(self) -> list[Task]:

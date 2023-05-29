@@ -1,6 +1,7 @@
 from http import HTTPStatus
 from aws_lambda_powertools import Tracer
 from aws_lambda_powertools.event_handler.router import APIGatewayRouter
+from aws_lambda_powertools.utilities.data_classes import APIGatewayProxyEvent
 
 from services.task_service import TaskService
 from services.queue_service import QueueService
@@ -9,6 +10,8 @@ from services.storage_service import StorageService
 tracer = Tracer()
 router = APIGatewayRouter()
 
+def get_user_id(event: APIGatewayProxyEvent):
+    return event.request_context.authorizer.claims['sub']
 
 @router.get('/')
 @tracer.capture_method
@@ -25,16 +28,14 @@ def list_tasks():
 @tracer.capture_method
 def create_task():
     task_service = TaskService(router.context.get('table_name'))
-    queue_service = QueueService(router.context.get('queue_url'))
 
     task = task_service.create(
         router.current_event.json_body,
-        router.current_event.request_context.authorizer.claims['sub'],
+        get_user_id(router.current_event),
         router.context.get('attachments_bucket_name')
     )
 
-    queue_service.send_message(task.build_sqs_message())
-    return task, HTTPStatus.ACCEPTED
+    return task, HTTPStatus.CREATED
 
 
 @router.get('/<taskId>')
@@ -53,9 +54,24 @@ def generate_attachment_upload_url(taskId: str):
     input_s3_content = task_service.update_attachment_input(
         taskId,
         router.current_event.json_body,
-        router.current_event.request_context.authorizer.claims['sub'],
+        get_user_id(router.current_event),
         router.context.get('attachments_bucket_name')
     )
 
     signed_content = storage_service.generate_presign_upload_url(input_s3_content)
     return signed_content, HTTPStatus.ACCEPTED
+
+
+@router.post('/<taskId>/submit')
+@tracer.capture_method
+def submit(taskId: str):
+    task_service = TaskService(router.context.get('table_name'))
+    queue_service = QueueService(router.context.get('queue_url'))
+
+    task = task_service.update_to_submit(
+        taskId,
+        get_user_id(router.current_event)
+    )
+
+    queue_service.send_message(task.build_sqs_message())
+    return task, HTTPStatus.ACCEPTED

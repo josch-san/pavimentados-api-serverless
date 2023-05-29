@@ -71,9 +71,5 @@ class BaseTask(BaseModel):
             # 'Gsi1Pk': 'TASK'
         }
 
-    def build_sqs_message(self) -> dict:
-        return {
-            **self.dynamodb_key,
-            **self.raw_dict(),
-            # 'Gsi1Pk': 'TASK'
-        }
+    def build_sqs_message(self) -> str:
+        return self.json(by_alias=True)

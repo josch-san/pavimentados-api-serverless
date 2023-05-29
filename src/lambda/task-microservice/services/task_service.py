@@ -38,11 +38,16 @@ class TaskService:
 
         return task
 
-    def update_attachment_input(self, task_id: str, body: dict, user_id: str, bucket_name: str) -> InputS3Content:
+    def retrieve_owned_task(self, task_id: str, user_id: str) -> Task:
         task = self.retrieve(task_id)
 
         if str(task.UserId) != user_id:
             raise UnauthorizedError("You are not authorized to modify task '{}'".format(task_id))
+
+        return task
+
+    def update_attachment_input(self, task_id: str, body: dict, user_id: str, bucket_name: str) -> InputS3Content:
+        task = self.retrieve_owned_task(task_id, user_id)
 
         if task.TaskStatus != TaskStatusEnum.DRAFT:
             raise BadRequestError("Cannot generate signed urls for task '{}' because is not in status 'draft'.".format(task_id))
@@ -58,3 +63,8 @@ class TaskService:
 
         self.repository.update_partial_inputs(task, [body['FieldName']])
         return getattr(task.Inputs, body['FieldName']).Content
+
+    def update_to_submit(self, task_id: str, user_id: str) -> Task:
+        task = self.retrieve_owned_task(task_id, user_id)
+
+        return task

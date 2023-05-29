@@ -25,7 +25,7 @@ Mappings:
 Resources:
   ArtifactsBucket:
     Type: AWS::S3::Bucket
-    DeletionPolicy: Retain
+    # DeletionPolicy: Retain
     Properties:
       BucketName: !Sub
         - 'infra-artifacts${envSuffix}-${AWS::AccountId}'
@@ -45,7 +45,7 @@ Resources:
 
   DatalakeBucket:
     Type: AWS::S3::Bucket
-    DeletionPolicy: Retain
+    # DeletionPolicy: Retain
     Properties:
       BucketName: !Sub
         - 'infra-datalake${envSuffix}-${AWS::AccountId}'
@@ -65,7 +65,7 @@ Resources:
 
   AttachmentsBucket:
     Type: AWS::S3::Bucket
-    DeletionPolicy: Retain
+    # DeletionPolicy: Retain
     Properties:
       BucketName: !Sub
         - 'infra-attachments${envSuffix}-${AWS::AccountId}'

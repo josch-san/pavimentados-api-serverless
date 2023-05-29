@@ -1,35 +1,30 @@
 import os
+import json
 from dataclasses import dataclass
-import pytest
+from http import HTTPStatus
 
-os.environ['AWS_DEFAULT_REGION'] = 'us-east-1'
-os.environ['TABLE_NAME'] = 'infra-dev'
-os.environ['ATTACHMENTS_BUCKET_NAME'] = 'bucket-dev'
-os.environ['TASK_QUEUE_URL'] = 'pavimentados-queue-dev'
-os.environ['API_STAGE'] = 'dev'
+# from boto3.dynamodb.conditions import Attr
+from boto3.dynamodb.types import TypeSerializer
+from botocore.stub import Stubber, ANY
+import pytest
 
 import sys
 sys.path.append('..')
+from . import mocks
+
+os.environ['AWS_DEFAULT_REGION'] = 'us-east-1'
+os.environ['TABLE_NAME'] = 'infra-mock'
+os.environ['ATTACHMENTS_BUCKET_NAME'] = 'infra-attachments-mock'
+os.environ['TASK_QUEUE_URL'] = 'pavimentados-queue-mock'
+os.environ['API_STAGE'] = 'dev'
+
+from services.repositories.task_repository import dynamodb
+from services.queue_service import sqs_client
+# from models.task import Task
 import app
 
-# Example of API Gateway REST API request event:
-# https://docs.aws.amazon.com/lambda/latest/dg/services-apigateway.html#apigateway-example-event
-EVENT_TEMPLATE = {
-        # 'path': '/dev/tasks',
-        # 'httpMethod': 'GET',
-        'requestContext': {
-            'authorizer': {
-                'claims': {
-                    'sub': '6b456b08-fa1d-4e24-9fbd-be990e023299',
-                    'cognito:username': '6b456b08-fa1d-4e24-9fbd-be990e023299',
-                    'given_name': 'Jose',
-                    'family_name': 'Hernandez',
-                    'email': 'jhernandez@sample.co'
-                }
-            },
-            'requestId': '227b78aa-779d-47d4-a48e-ce62120393b8'  # correlation ID
-        }
-    }
+ddb_serializer = TypeSerializer()
+serialize_to_ddb_record = lambda item: {key: ddb_serializer.serialize(value) for key, value in item.items()}
 
 
 @pytest.fixture
@@ -44,42 +39,88 @@ def lambda_context():
     return LambdaContext()
 
 
-def test_list_tasks(lambda_context):
+@pytest.fixture(autouse=True)
+def dynamodb_stub():
+    with Stubber(dynamodb.meta.client) as stubber:
+        yield stubber
+        stubber.assert_no_pending_responses()
+
+
+@pytest.fixture
+def sqs_stub():
+    with Stubber(sqs_client) as stubber:
+        yield stubber
+        stubber.assert_no_pending_responses()
+
+
+def test_list_tasks(lambda_context, dynamodb_stub):
     minimal_rest_event = {
-        **EVENT_TEMPLATE,
-        'path': '/dev/tasks',
-        'httpMethod': 'GET'
+        **mocks.API_GATEWAY_EVENT_TEMPLATE,
+        'httpMethod': 'GET',
+        'path': '/dev/tasks'
     }
 
+    dynamodb_stub.add_response(
+        'scan',
+        expected_params={
+            'TableName': 'infra-mock',
+            'FilterExpression': ANY
+        },
+        service_response={
+            **mocks.BOTO3_RESPONSE_TEMPLATE,
+            'Items': [serialize_to_ddb_record(task) for task in mocks.TASK_LIST]
+        }
+    )
+
     response = app.lambda_handler(minimal_rest_event, lambda_context)
+    assert response['statusCode'] == HTTPStatus.OK
 
-    assert response['statusCode'] == 200
 
-
-def test_retrieve_task(lambda_context):
+def test_retrieve_task(lambda_context, dynamodb_stub):
     minimal_rest_event = {
-        **EVENT_TEMPLATE,
-        'path': '/dev/tasks/db4e6a6c-d768-4b43-ad8c-99b579c8c23b',
-        'httpMethod': 'GET'
+        **mocks.API_GATEWAY_EVENT_TEMPLATE,
+        'httpMethod': 'GET',
+        'path': '/dev/tasks/145fe967-e83a-4f66-821c-b883c9afebca'
     }
 
+    dynamodb_stub.add_response(
+        'get_item',
+        expected_params={
+            'TableName': 'infra-mock',
+            'Key': {'Pk': 'TASK#145fe967-e83a-4f66-821c-b883c9afebca'}
+        },
+        service_response={
+            **mocks.BOTO3_RESPONSE_TEMPLATE,
+            'Item': serialize_to_ddb_record(mocks.NOT_OWNED_DRAFT_TASK)
+        }
+    )
+
     response = app.lambda_handler(minimal_rest_event, lambda_context)
-    assert response['statusCode'] == 200
+    assert response['statusCode'] == HTTPStatus.OK
 
 
-def test_retrieve_task_404(lambda_context):
+def test_retrieve_task_404(lambda_context, dynamodb_stub):
     # This task_id doesn't exists in db.
     minimal_rest_event = {
-        **EVENT_TEMPLATE,
-        'path': '/dev/tasks/a52bc1e1-9f2e-48ab-98f2-b5e4cc059154',
-        'httpMethod': 'GET'
+        **mocks.API_GATEWAY_EVENT_TEMPLATE,
+        'httpMethod': 'GET',
+        'path': '/dev/tasks/a52bc1e1-9f2e-48ab-98f2-b5e4cc059154'
     }
 
+    dynamodb_stub.add_response(
+        'get_item',
+        expected_params={
+            'TableName': 'infra-mock',
+            'Key': {'Pk': 'TASK#a52bc1e1-9f2e-48ab-98f2-b5e4cc059154'}
+        },
+        service_response=mocks.BOTO3_RESPONSE_TEMPLATE
+    )
+
     response = app.lambda_handler(minimal_rest_event, lambda_context)
-    assert response['statusCode'] == 404
+    assert response['statusCode'] == HTTPStatus.NOT_FOUND
 
 
-def test_generate_attachment_upload_url_unauthorized(lambda_context):
+def test_generate_attachment_upload_url_unauthorized(lambda_context, dynamodb_stub):
     payload = {
         'FieldName': 'VideoFile',
         'ArrayLength': 1,
@@ -87,11 +128,104 @@ def test_generate_attachment_upload_url_unauthorized(lambda_context):
     }
 
     minimal_rest_event = {
-        **EVENT_TEMPLATE,
-        'path': '/dev/tasks/69688b53-960b-45f8-9b03-476e73148b06/generateAttachmentUploadUrl',
+        **mocks.API_GATEWAY_EVENT_TEMPLATE,
         'httpMethod': 'POST',
+        'path': '/dev/tasks/145fe967-e83a-4f66-821c-b883c9afebca/generateAttachmentUploadUrl',
         'body': json.dumps(payload)
     }
 
+    dynamodb_stub.add_response(
+        'get_item',
+        expected_params={
+            'TableName': 'infra-mock',
+            'Key': {'Pk': 'TASK#145fe967-e83a-4f66-821c-b883c9afebca'}
+        },
+        service_response={
+            **mocks.BOTO3_RESPONSE_TEMPLATE,
+            'Item': serialize_to_ddb_record(mocks.NOT_OWNED_DRAFT_TASK)
+        }
+    )
+
     response = app.lambda_handler(minimal_rest_event, lambda_context)
-    assert response['statusCode'] == 401
+    assert response['statusCode'] == HTTPStatus.UNAUTHORIZED
+
+
+# def test_generate_attachment_upload_url(lambda_context, dynamodb_stub):
+#     payload = {
+#         'FieldName': 'VideoFile',
+#         'ArrayLength': 1,
+#         'Extension': 'mp4'
+#     }
+
+#     minimal_rest_event = {
+#         **mocks.API_GATEWAY_EVENT_TEMPLATE,
+#         'httpMethod': 'POST',
+#         'path': '/dev/tasks/04bcdf96-db09-46cd-909a-781a3f6dcab9/generateAttachmentUploadUrl',
+#         'body': json.dumps(payload)
+#     }
+
+#     dynamodb_stub.add_response(
+#         'get_item',
+#         expected_params={
+#             'TableName': 'infra-mock',
+#             'Key': {'Pk': 'TASK#04bcdf96-db09-46cd-909a-781a3f6dcab9'}
+#         },
+#         service_response={
+#             **mocks.BOTO3_RESPONSE_TEMPLATE,
+#             'Item': serialize_to_ddb_record(mocks.DRAFT_TASK)
+#         }
+#     )
+
+#     dynamodb_stub.add_response(
+#         'update_item',
+#         expected_params={
+#             'TableName': 'infra-mock',
+#             'Key': {'Pk': 'TASK#04bcdf96-db09-46cd-909a-781a3f6dcab9'},
+#             'UpdateExpression': f'SET Inputs.#key00 = :value00',
+#             'ExpressionAttributeNames': {'#key00': 'VideoFile'},
+#             'ExpressionAttributeValues': {':value00': ANY}
+#         },
+#         service_response=mocks.BOTO3_RESPONSE_TEMPLATE
+#     )
+
+#     response = app.lambda_handler(minimal_rest_event, lambda_context)
+#     assert response['statusCode'] == HTTPStatus.OK
+
+
+def test_task_submit(lambda_context, dynamodb_stub: Stubber, sqs_stub: Stubber):
+    minimal_rest_event = {
+        **mocks.API_GATEWAY_EVENT_TEMPLATE,
+        'httpMethod': 'POST',
+        'path': '/dev/tasks/04bcdf96-db09-46cd-909a-781a3f6dcab9/submit'
+    }
+
+    dynamodb_stub.add_response(
+        'get_item',
+        expected_params={
+            'TableName': 'infra-mock',
+            'Key': {'Pk': 'TASK#04bcdf96-db09-46cd-909a-781a3f6dcab9'}
+        },
+        service_response={
+            **mocks.BOTO3_RESPONSE_TEMPLATE,
+            'Item': serialize_to_ddb_record(mocks.DRAFT_TASK)
+        }
+    )
+
+    sqs_stub.add_response(
+        'send_message',
+        expected_params={
+            'QueueUrl': 'pavimentados-queue-mock',
+            'MessageBody': ANY
+            # 'MessageBody': Task.parse_obj(mocks.DRAFT_TASK).build_sqs_message()
+        },
+        service_response={
+            **mocks.BOTO3_RESPONSE_TEMPLATE,
+            'MD5OfMessageBody': 'caf62113c6147e8cbce6c193d0214d07',
+            'MessageId': '79c109cc-1812-4986-c4cf-046ba4f781e2'
+        }
+    )
+
+    response = app.lambda_handler(minimal_rest_event, lambda_context)
+
+    # TODO: Assert code status changed
+    assert response['statusCode'] == HTTPStatus.ACCEPTED

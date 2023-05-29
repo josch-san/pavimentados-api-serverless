@@ -1,4 +1,6 @@
 import os
+
+from models.base_task import TaskStatusEnum
 from services.task_service import TaskService
 
 os.environ['AWS_DEFAULT_REGION'] = 'us-east-1'
@@ -54,3 +56,13 @@ def test_update_attachment_array_item():
 
     content = task_service.update_attachment_input(task_id, payload, user_id, bucket_name)
     print(content)
+
+def test_update_to_submit():
+    table_name = 'infra-dev'
+    task_service = TaskService(table_name)
+
+    task_id = '1d44ad6e-3073-4e3a-8fb0-df12cdcdd8bb'
+    user_id = '2ecf2bb8-c700-4073-9d48-2745815dcd0d'
+
+    task = task_service.update_to_submit(task_id, user_id)
+    assert task.TaskStatus == TaskStatusEnum.QUEUED
