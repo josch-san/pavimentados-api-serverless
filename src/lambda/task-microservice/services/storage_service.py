@@ -7,20 +7,17 @@ s3_client = boto3.client('s3', config=Config(signature_version='s3v4'))
 
 
 class StorageService:
-    def __init__(self, bucket_name: str):
-        self.bucket_name = bucket_name
-
     def sign_upload_url(self, bucket, key):
         return s3_client.generate_presigned_url(
             ClientMethod='put_object',
             Params={
-                    'Bucket': bucket,
-                    'Key': key
+                'Bucket': bucket,
+                'Key': key
             },
             ExpiresIn=3600
         )
 
-    def generate_presign_upload_url(content: InputS3Content):
+    def generate_presign_upload_url(self, content: InputS3Content):
         pass
     #     if content.is_array:
     #         return [

@@ -67,4 +67,7 @@ class TaskService:
     def update_to_submit(self, task_id: str, user_id: str) -> Task:
         task = self.retrieve_owned_task(task_id, user_id)
 
+        if task.TaskStatus != TaskStatusEnum.DRAFT:
+            raise BadRequestError("Task '{}' cannot be submitted because is in status '{}'.".format(task_id, task.TaskStatus))
+
         return task

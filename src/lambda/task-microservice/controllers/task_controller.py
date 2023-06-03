@@ -10,8 +10,10 @@ from services.storage_service import StorageService
 tracer = Tracer()
 router = APIGatewayRouter()
 
+
 def get_user_id(event: APIGatewayProxyEvent):
     return event.request_context.authorizer.claims['sub']
+
 
 @router.get('/')
 @tracer.capture_method
