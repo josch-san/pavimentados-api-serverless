@@ -47,6 +47,19 @@ def retrieve_task(taskId: str):
 
     return task_service.retrieve(taskId)
 
+
+@router.put('/<taskId>')
+@tracer.capture_method
+def update_task(taskId: str):
+    task_service = TaskService(router.context.get('table_name'))
+
+    return task_service.update(
+        taskId,
+        router.current_event.json_body,
+        get_user_id(router.current_event)
+    )
+
+
 @router.post('/<taskId>/generateAttachmentUploadUrl')
 @tracer.capture_method
 def generate_attachment_upload_url(taskId: str):

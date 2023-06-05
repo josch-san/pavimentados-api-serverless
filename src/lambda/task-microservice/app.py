@@ -11,10 +11,10 @@ from serializers import custom_serializer
 tracer = Tracer()
 logger = Logger()
 
-TABLE_NAME = os.environ['TABLE_NAME']
-STAGE_PREFIX = '/' + os.environ['API_STAGE']
-ATTACHMENTS_BUCKET_NAME = os.environ['ATTACHMENTS_BUCKET_NAME']
-TASK_QUEUE_URL = os.environ['TASK_QUEUE_URL']
+TABLE_NAME = os.getenv('TABLE_NAME')
+STAGE_PREFIX = '/' + os.getenv('API_STAGE', 'dev')
+ATTACHMENTS_BUCKET_NAME = os.getenv('ATTACHMENTS_BUCKET_NAME')
+TASK_QUEUE_URL = os.getenv('TASK_QUEUE_URL')
 
 app = APIGatewayRestResolver(strip_prefixes=[STAGE_PREFIX], serializer=custom_serializer)
 app.include_router(task_controller.router, prefix='/tasks')

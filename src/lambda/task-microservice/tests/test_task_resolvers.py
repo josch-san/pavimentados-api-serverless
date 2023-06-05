@@ -10,10 +10,6 @@ sys.path.append('..')
 from tests import mocks
 
 os.environ['AWS_DEFAULT_REGION'] = 'us-east-1'
-os.environ['TABLE_NAME'] = 'infra-mock'
-os.environ['ATTACHMENTS_BUCKET_NAME'] = 'infra-attachments-mock'
-os.environ['TASK_QUEUE_URL'] = 'pavimentados-queue-mock'
-os.environ['API_STAGE'] = 'dev'
 
 from services.repositories.task_repository import dynamodb
 from services.queue_service import sqs_client
@@ -22,6 +18,13 @@ import app
 
 ddb_serializer = TypeSerializer()
 serialize_to_ddb_record = lambda item: {key: ddb_serializer.serialize(value) for key, value in item.items()}
+
+
+@pytest.fixture(autouse=True)
+def set_environment_varibles(monkeypatch):
+    monkeypatch.setattr(app, 'TABLE_NAME', 'infra-mock')
+    monkeypatch.setattr(app, 'ATTACHMENTS_BUCKET_NAME', 'infra-attachments-mock')
+    monkeypatch.setattr(app, 'TASK_QUEUE_URL', 'pavimentados-queue-mock')
 
 
 @pytest.fixture(autouse=True)
@@ -117,6 +120,32 @@ def test_generate_attachment_upload_url_unauthorized(lambda_context, build_api_r
     )
     response = app.lambda_handler(event, lambda_context)
     assert response['statusCode'] == HTTPStatus.UNAUTHORIZED
+
+
+def test_update_draft_task(lambda_context, build_api_request, dynamodb_stub):
+    event = build_api_request(
+        'PUT',
+        '/dev/tasks/04bcdf96-db09-46cd-909a-781a3f6dcab9',
+        body={
+            'Name': 'Cambio nombre',
+            'Description': 'Larga descripcion'
+        }
+    )
+
+    dynamodb_stub.add_response(
+        'get_item',
+        expected_params={
+            'TableName': 'infra-mock',
+            'Key': {'Pk': 'TASK#04bcdf96-db09-46cd-909a-781a3f6dcab9'}
+        },
+        service_response={
+            **mocks.BOTO3_RESPONSE_TEMPLATE,
+            'Item': serialize_to_ddb_record(mocks.DRAFT_TASK)
+        }
+    )
+
+    response = app.lambda_handler(event, lambda_context)
+    assert response['statusCode'] == HTTPStatus.OK
 
 
 # def test_generate_attachment_upload_url(lambda_context, build_api_request, dynamodb_stub):
