@@ -19,11 +19,11 @@ _DYNAMODB_RESOURCE = {
     'table_name' : os.getenv('TABLE_NAME')
 }
 _S3_RESOURCE = {
-    'resource' : resource('s3'), 
+    'resource' : resource('s3'),
     'bucket_name' : os.getenv('ATTACHMENTS_BUCKET_NAME')
 }
 _SQS_RESOURCE = {
-    'resource' : resource('sqs'), 
+    'resource' : resource('sqs'),
     'queue_url' : os.getenv('TASK_QUEUE_URL')
 }
 

@@ -2,7 +2,7 @@ import json
 from json import JSONEncoder
 
 from pydantic import BaseModel
-from models.base_task import BaseTask 
+from models.base_task import BaseTask
 
 
 class CustomEncoder(JSONEncoder):

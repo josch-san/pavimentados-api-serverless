@@ -4,7 +4,7 @@ from copy import deepcopy
 from pydantic import BaseModel, Field
 
 
-from .base_task import BaseTask
+from .base_task import BaseTask, TaskStatusEnum
 from .s3_object import InputS3Content, InputS3ItemContent, InputS3ArrayContent, OutputS3ItemContent
 
 

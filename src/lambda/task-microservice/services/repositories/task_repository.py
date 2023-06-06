@@ -31,7 +31,7 @@ class TaskRepository:
         )
 
         return Task.parse_obj(response['Item'])
-    
+
     def update_partial_inputs(self, task: Task, fields: list[str]) -> Task:
         update_expression = []
         attribute_names = {}

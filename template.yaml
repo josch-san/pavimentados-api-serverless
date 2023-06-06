@@ -161,7 +161,7 @@ Resources:
       CallbackURLs: [ https://localhost ]
       LogoutURLs: [ https://localhost ]
       AllowedOAuthFlowsUserPoolClient: true
-      AllowedOAuthFlows: 
+      AllowedOAuthFlows:
         - code
         - implicit
       AllowedOAuthScopes:
