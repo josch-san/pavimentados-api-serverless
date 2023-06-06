@@ -10,13 +10,14 @@ from models.task import Task
 from models.s3_object import InputS3Content
 from models.base_task import TaskStatusEnum
 from services.repositories.task_repository import TaskRepository
+from aws_resources import LambdaDynamoDB
 
 logger = Logger(child=True)
 
 
 class TaskService:
-    def __init__(self, table_name: str):
-        self.repository = TaskRepository(table_name)
+    def __init__(self, resource: LambdaDynamoDB):
+        self.repository = TaskRepository(resource)
 
     def list(self) -> list[Task]:
         return self.repository.list_tasks()

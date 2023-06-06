@@ -1,18 +1,16 @@
-import boto3
 from boto3.dynamodb.conditions import Attr
 from pydantic import parse_obj_as
 
 from models.task import Task
-
-dynamodb = boto3.resource('dynamodb')
+from aws_resources import LambdaDynamoDB
 
 
 class TaskRepository:
-    def __init__(self, table_name: str):
-        self.table = dynamodb.Table(table_name)
+    def __init__(self, resource: LambdaDynamoDB):
+        self.resource = resource
 
     def list_tasks(self) -> list[Task]:
-        response = self.table.scan(
+        response = self.resource.table.scan(
             FilterExpression=Attr('__typename').eq('TASK')
         )
 
@@ -23,12 +21,12 @@ class TaskRepository:
         task = Task.parse_obj(form)
 
         task.initialize_inputs(inputs, bucket_name)
-        self.table.put_item(Item=task.dynamodb_record)
+        self.resource.table.put_item(Item=task.dynamodb_record)
 
         return task
 
     def get_task(self, task_id: str) -> Task:
-        response = self.table.get_item(
+        response = self.resource.table.get_item(
             Key=Task.build_dynamodb_key(task_id)
         )
 
@@ -48,7 +46,7 @@ class TaskRepository:
             attribute_values[value_expression] = raw_task['Inputs'][field_key]
             update_expression.append(f'Inputs.{key_expression} = {value_expression}')
 
-        self.table.update_item(
+        self.resource.table.update_item(
             Key=task.dynamodb_key,
             UpdateExpression=f'SET {", ".join(update_expression)}',
             ExpressionAttributeNames=attribute_names,

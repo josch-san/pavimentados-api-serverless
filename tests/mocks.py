@@ -186,20 +186,3 @@ TASK_LIST = [
     DRAFT_TASK_TO_SUBMIT,
     COMPLETED_TASK
 ]
-
-BOTO3_RESPONSE_TEMPLATE = {
-    'ResponseMetadata': {
-        'RequestId': 'O599AH19SQJ6H8E1P3FLPHTUPRVV4KQNSO5AEMVJF66Q9ASUAAJG',
-        'HTTPStatusCode': 200,
-        'HTTPHeaders': {
-            'server': 'Server',
-            'date': 'Mon, 29 May 2023 13:43:28 GMT',
-            'content-type': 'application/x-amz-json-1.0',
-            'content-length': '1211',
-            'connection': 'keep-alive',
-            'x-amzn-requestid': 'O599AH19SQJ6H8E1P3FLPHTUPRVV4KQNSO5AEMVJF66Q9ASUAAJG',
-            'x-amz-crc32': '362874364'
-        },
-        'RetryAttempts': 0
-    }
-}
