@@ -104,6 +104,7 @@ class Task(BaseTask):
 
     def update_attachment_input(self, payload: dict, bucket_name: str) -> None:
         attachment_field = getattr(self.Inputs, payload['FieldName'])
+        attachment_field.Extension = payload['Extension']
 
         if not isinstance(attachment_field, InputS3Content):
             raise Exception(f"Field '{payload['FieldName']}' is not available to upload attachments.")
@@ -134,5 +135,7 @@ class Task(BaseTask):
                 for index in range(payload.get('ArrayLength', 1))
             ]
 
-        attachment_field.Extension = payload['Extension']
         setattr(self.Inputs, payload['FieldName'], attachment_field)
+
+    def update(self, payload: dict) -> None:
+        updateable_fields = []

@@ -40,7 +40,7 @@ class InputS3ItemContent(InputS3Content):
 
     @validator('Content', pre=True, always=True)
     def set_content(cls, content, values):
-        if not content['Key'].endswith(values['Extension']):
+        if content['Key'].endswith('/inputs'):
             file_name = cls.build_file_name(values['Extension'])
             content['Key'] = '/'.join([content['Key'], file_name])
 
@@ -61,7 +61,7 @@ class InputS3ArrayContent(InputS3Content):
 
     @validator('Content', pre=True, always=True)
     def set_content(cls, content, values):
-        if not content[0]['Key'].endswith(values['Extension']):
+        if content[0]['Key'].endswith('/inputs'):
             file_name = cls.build_indexed_file_name(values['Extension'], 0)
             content[0]['Key'] = '/'.join([content[0]['Key'], file_name])
 

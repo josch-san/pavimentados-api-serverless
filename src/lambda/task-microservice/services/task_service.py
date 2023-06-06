@@ -1,3 +1,4 @@
+from pydantic import ValidationError
 from aws_lambda_powertools import Logger
 from aws_lambda_powertools.event_handler.exceptions import (
     NotFoundError,
@@ -27,6 +28,7 @@ class TaskService:
             task = self.repository.create_task(form, bucket_name)
         except Exception as e:
             logger.error(e.errors())
+            raise BadRequestError('Task could not be created.')
 
         return task
 
@@ -45,6 +47,22 @@ class TaskService:
             raise UnauthorizedError("You are not authorized to modify task '{}'".format(task_id))
 
         return task
+
+    def update(self, task_id: str, body: dict, user_id: str) -> Task:
+        task = self.retrieve_owned_task(task_id, user_id)
+
+        if task.TaskStatus != TaskStatusEnum.DRAFT:
+            raise BadRequestError("Task '{}' cannot be updated because is in status '{}'.".format(task_id, task.TaskStatus))
+
+        try:
+            updated_task = task.copy(update=body)
+            # TODO: pending implementation.
+        except ValidationError as e:
+            logger.error(e.errors())
+            raise BadRequestError("Task '{}' could not be updated.".format(task_id))
+
+        self.repository.update_task(updated_task)
+        return updated_task
 
     def update_attachment_input(self, task_id: str, body: dict, user_id: str, bucket_name: str) -> InputS3Content:
         task = self.retrieve_owned_task(task_id, user_id)

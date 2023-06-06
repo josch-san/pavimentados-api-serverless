@@ -28,7 +28,7 @@ def test_create_task(task_service: TaskService):
     }
 
     user_id = '6b456b08-fa1d-4e24-9fbd-be990e023299'
-    bucket_name = 'infra-attachments-dev-195419001736'
+    bucket_name = 'infra-attachments-mock'
 
     task = task_service.create(form, user_id, bucket_name)
     print(task)
@@ -37,7 +37,7 @@ def test_create_task(task_service: TaskService):
 def test_update_attachment_input_item(task_service: TaskService):
     task_id = 'ffb0a7bb-4337-4af1-9af5-43362a038715'
     user_id = '6b456b08-fa1d-4e24-9fbd-be990e023299'
-    bucket_name = 'infra-attachments-dev-195419001736'
+    bucket_name = 'infra-attachments-mock'
     payload = {
         'FieldName': 'VideoFile',
         'ArrayLength': 1,
@@ -51,7 +51,7 @@ def test_update_attachment_input_item(task_service: TaskService):
 def test_update_attachment_array_item(task_service: TaskService):
     task_id = '1d44ad6e-3073-4e3a-8fb0-df12cdcdd8bb'
     user_id = '6b456b08-fa1d-4e24-9fbd-be990e023299'
-    bucket_name = 'infra-attachments-dev-195419001736'
+    bucket_name = 'infra-attachments-mock'
     payload = {
         'FieldName': 'ImageBundle',
         'ArrayLength': 3,

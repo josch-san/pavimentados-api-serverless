@@ -17,7 +17,7 @@ MOCK_TASK = {
             'Extension': 'mp4',
             'Content': {
                 'Key': 'pavimenta2/user:2ecf2bb8-c700-4073-9d48-2745815dcd0d/road_sections_inference/efd28533-8bb3-4d1e-8e2b-c063a61c006a/inputs/VideoFile_20230523174230.mp4',
-                'Bucket': 'infra-attachments-dev-195419001736',
+                'Bucket': 'infra-attachments-mock',
                 'Uploaded': False
             }
         },
@@ -25,7 +25,7 @@ MOCK_TASK = {
             'Extension': 'log',
             'Content': {
                 'Key': 'pavimenta2/user:2ecf2bb8-c700-4073-9d48-2745815dcd0d/road_sections_inference/efd28533-8bb3-4d1e-8e2b-c063a61c006a/inputs/GpsFile_20230523174230.log',
-                'Bucket': 'infra-attachments-dev-195419001736',
+                'Bucket': 'infra-attachments-mock',
                 'Uploaded': False
             }
         },
@@ -46,7 +46,7 @@ def test_instance_video_input_task():
     }
 
     user_id = '2ecf2bb8-c700-4073-9d48-2745815dcd0d'
-    bucket = 'infra-attachments-dev-195419001736'
+    bucket = 'infra-attachments-mock'
 
     inputs = form.pop('Inputs')
     task = Task.parse_obj({**form, 'UserId': user_id})
@@ -67,7 +67,7 @@ def test_instance_image_input_task():
     }
 
     user_id = '2ecf2bb8-c700-4073-9d48-2745815dcd0d'
-    bucket = 'infra-attachments-dev-195419001736'
+    bucket = 'infra-attachments-mock'
 
     inputs = form.pop('Inputs')
     task = Task.parse_obj({**form, 'UserId': user_id})
@@ -78,11 +78,16 @@ def test_instance_image_input_task():
 
 
 def test_update_attachment_input():
+    bucket_name = 'infra-attachments-mock'
     payload = {
-        'FieldName': 'VideoFile',
-        'ArrayLength': 1,
-        'Extension': 'mp4'
+        'FieldName': 'GpsFile',
+        'Extension': 'txt'
     }
 
     task = Task.parse_obj(MOCK_TASK)
-    task.update_attachment_input(payload)
+    task.update_attachment_input(payload, bucket_name)
+
+    path, file_name = task.Inputs.GpsFile.Content.Key.rsplit('/', 1)
+    assert path == f'pavimenta2/user:{task.UserId}/road_sections_inference/{task.Id}/inputs'
+    assert file_name.startswith('GpsFile_')
+    assert file_name.endswith('.txt')
