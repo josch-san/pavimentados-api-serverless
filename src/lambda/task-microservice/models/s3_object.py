@@ -1,9 +1,7 @@
-from typing import Generic, TypeVar
+from datetime import datetime
+from typing import Union
 
-from pydantic import BaseModel
-from pydantic.generics import GenericModel
-
-ExtensionT = TypeVar('ExtensionT')
+from pydantic import BaseModel, validator
 
 
 class S3ObjectReference(BaseModel):
@@ -19,15 +17,52 @@ class OutputS3ItemContent(BaseModel):
     Content: S3ObjectReference
 
 
-class InputS3ItemContent(GenericModel, Generic[ExtensionT]):
-# class InputS3ItemContent(BaseModel):
-    Extension: ExtensionT
-    # Extension: str
+class InputS3Content(BaseModel):
+    Extension: str
+    Content: Union[FlaggedS3ObjectReference, list[FlaggedS3ObjectReference]]
+
+    @property
+    def is_array(self):
+        return isinstance(self.Content, list)
+
+
+class InputS3ItemContent(InputS3Content):
+    Extension: str
     Content: FlaggedS3ObjectReference
 
+    class Config:
+        extra = 'ignore'
+        validate_assignment = True
 
-class InputS3ArrayContent(GenericModel, Generic[ExtensionT]):
-# class InputS3ArrayContent(BaseModel):
-    Extension: ExtensionT
-    # Extension: str
+    @classmethod
+    def build_file_name(cls, extension):
+        return f'{cls.__name__}_{datetime.utcnow():%Y%m%d%H%M%S}.{extension}'
+
+    @validator('Content', pre=True, always=True)
+    def set_content(cls, content, values):
+        if content['Key'].endswith('/inputs'):
+            file_name = cls.build_file_name(values['Extension'])
+            content['Key'] = '/'.join([content['Key'], file_name])
+
+        return content
+
+
+class InputS3ArrayContent(InputS3Content):
+    Extension: str
     Content: list[FlaggedS3ObjectReference]
+
+    class Config:
+        extra = 'ignore'
+        validate_assignment = True
+
+    @classmethod
+    def build_indexed_file_name(cls, extension, index):
+        return f'{cls.__name__}_{datetime.utcnow():%Y%m%d%H%M%S}_{index:02}.{extension}'
+
+    @validator('Content', pre=True, always=True)
+    def set_content(cls, content, values):
+        if content[0]['Key'].endswith('/inputs'):
+            file_name = cls.build_indexed_file_name(values['Extension'], 0)
+            content[0]['Key'] = '/'.join([content[0]['Key'], file_name])
+
+        return content
