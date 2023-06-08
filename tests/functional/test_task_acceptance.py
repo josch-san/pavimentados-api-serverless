@@ -8,7 +8,7 @@ import pytest
 from moto import mock_dynamodb
 
 os.environ['AWS_DEFAULT_REGION'] = 'us-east-1'
-sys.path.append('./src/lambda/task-microservice')
+sys.path.append('src/lambda/task-microservice')
 
 from models.task import TaskStatusEnum, Task
 import app
@@ -33,7 +33,7 @@ def api_client(lambda_context, build_api_request):
     return _resolve_request
 
 
-@pytest.fixture(scope='class')
+@pytest.fixture(scope='session')
 def dynamodb():
     print('Mocking dynamodb...')
     with mock_dynamodb():
@@ -72,22 +72,19 @@ class TestTaskEndpoints:
         response_body = parse_body(response)
         assert len(response_body['items']) == len(mocks.TASK_LIST)
 
-    def test_retrieve_task(self, api_client):
-        task_id = mocks.NOT_OWNED_DRAFT_TASK['Id']
-
+    @pytest.mark.parametrize('task_id, expected_http_status', [
+        (mocks.NOT_OWNED_DRAFT_TASK['Id'], HTTPStatus.OK),
+        ('a52bc1e1-9f2e-48ab-98f2-b5e4cc059154', HTTPStatus.NOT_FOUND)
+    ])
+    def test_retrieve_task(self, api_client, task_id: str, expected_http_status: int):
         response = api_client('GET', f'/dev/tasks/{task_id}')
-        assert response['statusCode'] == HTTPStatus.OK
+        assert response['statusCode'] == expected_http_status
 
-    def test_retrieve_not_found_task(self, api_client):
-        # This task_id doesn't exists in db.
-        task_id = 'a52bc1e1-9f2e-48ab-98f2-b5e4cc059154'
-
-        response = api_client('GET', f'/dev/tasks/{task_id}')
-        assert response['statusCode'] == HTTPStatus.NOT_FOUND
-
-    def test_update_unauthorized_task(self, api_client):
-        task_id = mocks.NOT_OWNED_DRAFT_TASK['Id']
-
+    @pytest.mark.parametrize('task_id, expected_http_status', [
+        (mocks.DRAFT_TASK['Id'], HTTPStatus.OK),
+        (mocks.NOT_OWNED_DRAFT_TASK['Id'], HTTPStatus.UNAUTHORIZED)
+    ])
+    def test_update_task(self, api_client, task_id: str, expected_http_status: int):
         response = api_client(
             'PUT',
             f'/dev/tasks/{task_id}',
@@ -96,7 +93,7 @@ class TestTaskEndpoints:
                 'Description': 'Larga descripcion'
             }
         )
-        assert response['statusCode'] == HTTPStatus.UNAUTHORIZED
+        assert response['statusCode'] == expected_http_status
 
 
 class TestTaskWorkflow:

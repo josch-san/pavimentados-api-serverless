@@ -1,5 +1,5 @@
 import sys
-sys.path.append('./src/lambda/task-microservice')
+sys.path.append('src/lambda/task-microservice')
 
 from models.task import Task
 from tests import mocks
