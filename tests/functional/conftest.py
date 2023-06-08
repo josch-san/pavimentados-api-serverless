@@ -2,6 +2,8 @@ import json
 from dataclasses import dataclass
 import pytest
 
+from tests import mocks
+
 
 @pytest.fixture
 def lambda_context():
@@ -24,8 +26,8 @@ def build_api_request():
             'requestContext': {
                 'authorizer': {
                     'claims': {
-                        'sub': '6b456b08-fa1d-4e24-9fbd-be990e023299',
-                        'cognito:username': '6b456b08-fa1d-4e24-9fbd-be990e023299',
+                        'sub': mocks.USER_ID,
+                        'cognito:username': mocks.USER_ID,
                         'given_name': 'Jose',
                         'family_name': 'Hernandez',
                         'email': 'jhernandez@sample.co'

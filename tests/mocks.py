@@ -1,3 +1,7 @@
+TABLE_NAME = 'infra-mock'
+BUCKET_NAME = 'infra-attachments-mock'
+QUEUE_URL = 'https://sqs.us-east-1.amazonaws.com/123456789012/pavimentados-queue-mock'
+USER_ID = '6b456b08-fa1d-4e24-9fbd-be990e023299'
 
 DRAFT_TASK = {
     'Pk': 'TASK#04bcdf96-db09-46cd-909a-781a3f6dcab9',
@@ -189,3 +193,65 @@ TASK_LIST = [
 
 DRAFT_VIDEO_GPS_TASK = DRAFT_TASK
 DRAFT_IMAGE_BUNDLE_GPS_TASK = DRAFT_TASK_TO_SUBMIT
+
+
+ATTACHMENT_URL_VIDEO_FILE_FORM = {
+    'FieldName': 'VideoFile',
+    'ArrayLength': 1,
+    'Extension': 'mp4'
+}
+
+ATTACHMENT_URL_IMAGE_BUNDLE_FORM = {
+    'FieldName': 'ImageBundle',
+    'ArrayLength': 5,
+    'Extension': 'zip'
+}
+
+ATTACHMENT_URL_GPS_FILE_FORM = {
+    'FieldName': 'GpsFile',
+    'Extension': 'txt'
+}
+
+ATTACHMENT_URL_WRONG_EXTENSION_FORM = {
+    'FieldName': 'GpsFile',
+    'ArrayLength': 1,
+    'Extension': 'csv'
+}
+
+ATTACHMENT_URL_WRONG_ARRAY_LENGTH_FORM = {
+    'FieldName': 'VideoFile',
+    'ArrayLength': 3,
+    'Extension': 'mp4'
+}
+
+ATTACHMENT_URL_WRONG_FILE_NAME_FORM = {
+    'FieldName': 'CompressedFile',
+    'Extension': 'zip'
+}
+
+VIDEO_GPS_CREATE_FORM = {
+    'Name': 'Analizando video',
+    'Description': 'larga descripcion...',
+    'Inputs': {
+        'Geography': 'Pichincha',
+        'Type': 'video_gps'
+    }
+}
+
+IMAGE_BUNDLE_GPS_CREATE_FORM = {
+    'Name': 'Analizando imagenes con GPS',
+    'Description': 'larga descripcion...',
+    'Inputs': {
+        'Geography': 'Pichincha',
+        'Type': 'image_bundle_gps'
+    }
+}
+
+IMAGE_BUNDLE_CREATE_FORM = {
+    'Name': 'Analizando imagenes',
+    'Description': 'larga descripcion...',
+    'Inputs': {
+        'Geography': 'Pichincha',
+        'Type': 'image_bundle'
+    }
+}

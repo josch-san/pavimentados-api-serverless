@@ -15,11 +15,7 @@ import app
 
 from tests import mocks
 
-TABLE_NAME = 'infra-mock'
-BUCKET_NAME = 'infra-attachments-mock'
 OUTPUT_PATH_TEMPLATE = 'pavimenta2/user:6b456b08-fa1d-4e24-9fbd-be990e023299/road_sections_inference/{}/outputs'
-
-
 def parse_body(response):
     return json.loads(response['body'])
 
@@ -39,7 +35,7 @@ def dynamodb():
     with mock_dynamodb():
         dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
         table = dynamodb.create_table(
-            TableName = TABLE_NAME,
+            TableName = mocks.TABLE_NAME,
             KeySchema=[{'AttributeName': 'Pk', 'KeyType': 'HASH'}],
             AttributeDefinitions=[{'AttributeName': 'Pk', 'AttributeType': 'S'}],
             BillingMode='PAY_PER_REQUEST'
@@ -55,12 +51,12 @@ def dynamodb():
 
 @pytest.fixture(autouse=True)
 def set_aws_resources(monkeypatch, dynamodb):
-    monkeypatch.setitem(app._S3_RESOURCE, 'bucket_name', 'infra-attachments-mock')
-    monkeypatch.setitem(app._SQS_RESOURCE, 'queue_url', 'pavimentados-queue-mock')
+    monkeypatch.setitem(app._S3_RESOURCE, 'bucket_name', mocks.BUCKET_NAME)
+    monkeypatch.setitem(app._SQS_RESOURCE, 'queue_url', mocks.QUEUE_URL)
 
     monkeypatch.setattr(app, '_DYNAMODB_RESOURCE', {
         'resource': dynamodb,
-        'table_name': 'infra-mock'
+        'table_name': mocks.TABLE_NAME
     })
 
 
@@ -73,16 +69,17 @@ class TestTaskEndpoints:
         assert len(response_body['items']) == len(mocks.TASK_LIST)
 
     @pytest.mark.parametrize('task_id, expected_http_status', [
-        (mocks.NOT_OWNED_DRAFT_TASK['Id'], HTTPStatus.OK),
-        ('a52bc1e1-9f2e-48ab-98f2-b5e4cc059154', HTTPStatus.NOT_FOUND)
+        ('a52bc1e1-9f2e-48ab-98f2-b5e4cc059154', HTTPStatus.NOT_FOUND),
+        (mocks.NOT_OWNED_DRAFT_TASK['Id'], HTTPStatus.OK)
     ])
     def test_retrieve_task(self, api_client, task_id: str, expected_http_status: int):
         response = api_client('GET', f'/dev/tasks/{task_id}')
         assert response['statusCode'] == expected_http_status
 
     @pytest.mark.parametrize('task_id, expected_http_status', [
-        (mocks.DRAFT_TASK['Id'], HTTPStatus.OK),
-        (mocks.NOT_OWNED_DRAFT_TASK['Id'], HTTPStatus.UNAUTHORIZED)
+        (mocks.NOT_OWNED_DRAFT_TASK['Id'], HTTPStatus.UNAUTHORIZED),
+        (mocks.COMPLETED_TASK['Id'], HTTPStatus.BAD_REQUEST),
+        (mocks.DRAFT_TASK['Id'], HTTPStatus.OK)
     ])
     def test_update_task(self, api_client, task_id: str, expected_http_status: int):
         response = api_client(
@@ -100,16 +97,8 @@ class TestTaskWorkflow:
     def test_request_task_and_submit(self, api_client, dynamodb):
         # Step 1: Create task
         base_task_url = '/dev/tasks'
-        create_form = {
-            'Name': 'Analizando imagenes',
-            'Description': 'larga descripcion...',
-            'Inputs': {
-                'Geography': 'Pichincha',
-                'Type': 'image_bundle'
-            }
-        }
 
-        response = api_client('POST', base_task_url, body=create_form)
+        response = api_client('POST', base_task_url, body=mocks.IMAGE_BUNDLE_CREATE_FORM)
         assert response['statusCode'] == HTTPStatus.CREATED
 
         created_task = parse_body(response)
@@ -170,30 +159,30 @@ class TestTaskWorkflow:
 
 
     def update_task_to_completed(self, task_id, dynamodb):
-        table = dynamodb.Table(TABLE_NAME)
+        table = dynamodb.Table(mocks.TABLE_NAME)
 
         mock_output = {
             'DetectionsOverPhotogram': {
                 'Content': {
-                    'Bucket': BUCKET_NAME,
+                    'Bucket': mocks.BUCKET_NAME,
                     'Key': OUTPUT_PATH_TEMPLATE.format(task_id) + '/detections_over_photogram.csv'
                 }
             },
             'FailuresDetected': {
                 'Content': {
-                    'Bucket': BUCKET_NAME,
+                    'Bucket': mocks.BUCKET_NAME,
                     'Key': OUTPUT_PATH_TEMPLATE.format(task_id) + '/failures_detected.csv'
                 }
             },
             'Sections': {
                 'Content': {
-                    'Bucket': BUCKET_NAME,
+                    'Bucket': mocks.BUCKET_NAME,
                     'Key': OUTPUT_PATH_TEMPLATE.format(task_id) + '/sections.csv'
                 }
             },
             'SignalsDetected': {
                 'Content': {
-                    'Bucket': BUCKET_NAME,
+                    'Bucket': mocks.BUCKET_NAME,
                     'Key': OUTPUT_PATH_TEMPLATE.format(task_id) + '/signals_detected.csv'
                 }
             }
