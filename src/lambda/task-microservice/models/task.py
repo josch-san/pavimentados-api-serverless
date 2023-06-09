@@ -1,4 +1,5 @@
 from typing import Optional, Literal, Annotated, Union
+from datetime import datetime
 from copy import deepcopy
 
 from pydantic import BaseModel, Field
@@ -136,6 +137,27 @@ class Task(BaseTask):
             ]
 
         setattr(self.Inputs, payload['FieldName'], attachment_field)
+        self.ModifiedAt = datetime.utcnow()
+
+        return ['Inputs.' + payload['FieldName'], 'ModifiedAt']
 
     def update(self, payload: dict) -> None:
-        updateable_fields = []
+        updateable_fields = ['Name', 'Description', 'AccessLevel']
+        updateable_inputs = ['Geography']
+
+        updated_fields = []
+        for key, value in payload.items():
+            if key in updateable_fields:
+                setattr(self, key, value)
+                updated_fields.append(key)
+
+        for key, value in payload.get('Inputs', {}).items():
+            if key in updateable_inputs:
+                setattr(self.Inputs, key, value)
+                updated_fields.append('Inputs.' + key)
+
+        if updated_fields:
+            self.ModifiedAt = datetime.utcnow()
+            updated_fields.append('ModifiedAt')
+
+        return updated_fields

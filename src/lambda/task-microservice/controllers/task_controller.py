@@ -74,7 +74,7 @@ def generate_attachment_upload_url(taskId: str):
     )
 
     signed_content = storage_service.generate_presign_upload_url(input_s3_content)
-    return signed_content, HTTPStatus.ACCEPTED
+    return signed_content, HTTPStatus.OK
 
 
 @router.post('/<taskId>/submit')

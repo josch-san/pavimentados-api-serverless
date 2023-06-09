@@ -255,3 +255,11 @@ IMAGE_BUNDLE_CREATE_FORM = {
         'Type': 'image_bundle'
     }
 }
+
+UPDATE_FORM = {
+    'Name': 'Autopista Nacional TC-153',
+    'Description': 'Un analisis muy importante',
+    'Inputs': {
+        'Geography': 'Monserrat'
+    }
+}

@@ -85,10 +85,7 @@ class TestTaskEndpoints:
         response = api_client(
             'PUT',
             f'/dev/tasks/{task_id}',
-            body={
-                'Name': 'Cambio nombre',
-                'Description': 'Larga descripcion'
-            }
+            body=mocks.UPDATE_FORM
         )
         assert response['statusCode'] == expected_http_status
 
@@ -97,8 +94,16 @@ class TestTaskWorkflow:
     def test_request_task_and_submit(self, api_client, dynamodb):
         # Step 1: Create task
         base_task_url = '/dev/tasks'
+        create_form = {
+            'Name': 'Analizando imagenes',
+            'Description': 'larga descripcion...',
+            'Inputs': {
+                'Geography': 'Pichincha',
+                'Type': 'image_bundle'
+            }
+        }
 
-        response = api_client('POST', base_task_url, body=mocks.IMAGE_BUNDLE_CREATE_FORM)
+        response = api_client('POST', base_task_url, body=create_form)
         assert response['statusCode'] == HTTPStatus.CREATED
 
         created_task = parse_body(response)
