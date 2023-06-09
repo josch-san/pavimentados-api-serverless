@@ -2,6 +2,8 @@ import json
 from dataclasses import dataclass
 import pytest
 
+from tests import mocks
+
 
 @pytest.fixture
 def lambda_context():
@@ -9,7 +11,7 @@ def lambda_context():
     class LambdaContext:
         function_name: str = 'task-microservice-mock'
         memory_limit_in_mb: int = 128
-        invoked_function_arn: str = 'arn:aws:lambda:eu-east-1:123456789012:function:task-microservice-mock'
+        invoked_function_arn: str = 'arn:aws:lambda:us-east-1:123456789012:function:task-microservice-mock'
         aws_request_id: str = 'da658bd3-2d6f-4e7b-8ec2-937234644fdc'
 
     return LambdaContext()
@@ -24,8 +26,8 @@ def build_api_request():
             'requestContext': {
                 'authorizer': {
                     'claims': {
-                        'sub': '6b456b08-fa1d-4e24-9fbd-be990e023299',
-                        'cognito:username': '6b456b08-fa1d-4e24-9fbd-be990e023299',
+                        'sub': mocks.USER_ID,
+                        'cognito:username': mocks.USER_ID,
                         'given_name': 'Jose',
                         'family_name': 'Hernandez',
                         'email': 'jhernandez@sample.co'

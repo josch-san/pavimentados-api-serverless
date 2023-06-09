@@ -1,18 +1,16 @@
-import boto3
 from boto3.dynamodb.conditions import Attr
 from pydantic import parse_obj_as
 
 from models.task import Task
-
-dynamodb = boto3.resource('dynamodb')
+from aws_resources import LambdaDynamoDB
 
 
 class TaskRepository:
-    def __init__(self, table_name: str):
-        self.table = dynamodb.Table(table_name)
+    def __init__(self, resource: LambdaDynamoDB):
+        self.resource = resource
 
     def list_tasks(self) -> list[Task]:
-        response = self.table.scan(
+        response = self.resource.table.scan(
             FilterExpression=Attr('__typename').eq('TASK')
         )
 
@@ -23,18 +21,18 @@ class TaskRepository:
         task = Task.parse_obj(form)
 
         task.initialize_inputs(inputs, bucket_name)
-        self.table.put_item(Item=task.dynamodb_record)
+        self.resource.table.put_item(Item=task.dynamodb_record)
 
         return task
 
     def get_task(self, task_id: str) -> Task:
-        response = self.table.get_item(
+        response = self.resource.table.get_item(
             Key=Task.build_dynamodb_key(task_id)
         )
 
         return Task.parse_obj(response['Item'])
-    
-    def update_partial_inputs(self, task: Task, fields: list[str]) -> Task:
+
+    def partial_update(self, task: Task, fields: list[str]) -> Task:
         update_expression = []
         attribute_names = {}
         attribute_values = {}
@@ -45,10 +43,13 @@ class TaskRepository:
             value_expression = f':value{index:02}'
 
             attribute_names[key_expression] = field_key
-            attribute_values[value_expression] = raw_task['Inputs'][field_key]
-            update_expression.append(f'Inputs.{key_expression} = {value_expression}')
+            attribute_values[value_expression] = raw_task[field_key] \
+                if not field_key.startswith('Inputs.') \
+                else raw_task['Inputs'][field_key.replace('Inputs.', '')]
 
-        self.table.update_item(
+            update_expression.append(f'{key_expression} = {value_expression}')
+
+        self.resource.table.update_item(
             Key=task.dynamodb_key,
             UpdateExpression=f'SET {", ".join(update_expression)}',
             ExpressionAttributeNames=attribute_names,

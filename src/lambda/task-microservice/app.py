@@ -1,20 +1,31 @@
 import os
 
+from boto3 import resource
 from aws_lambda_powertools import Logger, Tracer
 from aws_lambda_powertools.logging import correlation_paths
 from aws_lambda_powertools.utilities.typing import LambdaContext
 from aws_lambda_powertools.event_handler import APIGatewayRestResolver
 
+from aws_resources import LambdaDynamoDB, LambdaS3, LambdaSQS
 from controllers import task_controller
 from serializers import custom_serializer
 
 tracer = Tracer()
 logger = Logger()
 
-TABLE_NAME = os.getenv('TABLE_NAME')
 STAGE_PREFIX = '/' + os.getenv('API_STAGE', 'dev')
-ATTACHMENTS_BUCKET_NAME = os.getenv('ATTACHMENTS_BUCKET_NAME')
-TASK_QUEUE_URL = os.getenv('TASK_QUEUE_URL')
+_DYNAMODB_RESOURCE = {
+    'resource' : resource('dynamodb'),
+    'table_name' : os.getenv('TABLE_NAME')
+}
+_S3_RESOURCE = {
+    'resource' : resource('s3'),
+    'bucket_name' : os.getenv('ATTACHMENTS_BUCKET_NAME')
+}
+_SQS_RESOURCE = {
+    'resource' : resource('sqs'),
+    'queue_url' : os.getenv('TASK_QUEUE_URL')
+}
 
 app = APIGatewayRestResolver(strip_prefixes=[STAGE_PREFIX], serializer=custom_serializer)
 app.include_router(task_controller.router, prefix='/tasks')
@@ -23,10 +34,14 @@ app.include_router(task_controller.router, prefix='/tasks')
 @logger.inject_lambda_context(correlation_id_path=correlation_paths.API_GATEWAY_REST)
 @tracer.capture_lambda_handler
 def lambda_handler(event: dict, context: LambdaContext) -> dict:
+    global _DYNAMODB_RESOURCE
+    global _S3_RESOURCE
+    global _SQS_RESOURCE
+
     app.append_context(
-        table_name=TABLE_NAME,
-        attachments_bucket_name=ATTACHMENTS_BUCKET_NAME,
-        queue_url=TASK_QUEUE_URL
+        dynamodb_resource=LambdaDynamoDB(_DYNAMODB_RESOURCE),
+        s3_resource=LambdaS3(_S3_RESOURCE),
+        sqs_resource=LambdaSQS(_SQS_RESOURCE)
     )
 
     return app.resolve(event, context)

@@ -1,0 +1,6 @@
+boto3==1.26.46
+aws-lambda-powertools==2.14.1
+pydantic==1.10.7
+
+pytest==7.3.1
+moto==4.1.11

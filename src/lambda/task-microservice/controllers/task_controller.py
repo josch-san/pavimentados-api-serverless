@@ -18,7 +18,7 @@ def get_user_id(event: APIGatewayProxyEvent):
 @router.get('/')
 @tracer.capture_method
 def list_tasks():
-    task_service = TaskService(router.context.get('table_name'))
+    task_service = TaskService(router.context.get('dynamodb_resource'))
 
     tasks = task_service.list()
     return {
@@ -29,12 +29,12 @@ def list_tasks():
 @router.post('/')
 @tracer.capture_method
 def create_task():
-    task_service = TaskService(router.context.get('table_name'))
+    task_service = TaskService(router.context.get('dynamodb_resource'))
 
     task = task_service.create(
         router.current_event.json_body,
         get_user_id(router.current_event),
-        router.context.get('attachments_bucket_name')
+        router.context.get('s3_resource').bucket_name
     )
 
     return task, HTTPStatus.CREATED
@@ -43,7 +43,7 @@ def create_task():
 @router.get('/<taskId>')
 @tracer.capture_method
 def retrieve_task(taskId: str):
-    task_service = TaskService(router.context.get('table_name'))
+    task_service = TaskService(router.context.get('dynamodb_resource'))
 
     return task_service.retrieve(taskId)
 
@@ -51,7 +51,7 @@ def retrieve_task(taskId: str):
 @router.put('/<taskId>')
 @tracer.capture_method
 def update_task(taskId: str):
-    task_service = TaskService(router.context.get('table_name'))
+    task_service = TaskService(router.context.get('dynamodb_resource'))
 
     return task_service.update(
         taskId,
@@ -63,25 +63,25 @@ def update_task(taskId: str):
 @router.post('/<taskId>/generateAttachmentUploadUrl')
 @tracer.capture_method
 def generate_attachment_upload_url(taskId: str):
-    task_service = TaskService(router.context.get('table_name'))
+    task_service = TaskService(router.context.get('dynamodb_resource'))
     storage_service = StorageService()
 
     input_s3_content = task_service.update_attachment_input(
         taskId,
         router.current_event.json_body,
         get_user_id(router.current_event),
-        router.context.get('attachments_bucket_name')
+        router.context.get('s3_resource').bucket_name
     )
 
     signed_content = storage_service.generate_presign_upload_url(input_s3_content)
-    return signed_content, HTTPStatus.ACCEPTED
+    return signed_content, HTTPStatus.OK
 
 
 @router.post('/<taskId>/submit')
 @tracer.capture_method
 def submit(taskId: str):
-    task_service = TaskService(router.context.get('table_name'))
-    queue_service = QueueService(router.context.get('queue_url'))
+    task_service = TaskService(router.context.get('dynamodb_resource'))
+    queue_service = QueueService(router.context.get('sqs_resource'))
 
     task = task_service.update_to_submit(
         taskId,

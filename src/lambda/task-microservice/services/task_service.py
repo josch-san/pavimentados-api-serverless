@@ -10,13 +10,14 @@ from models.task import Task
 from models.s3_object import InputS3Content
 from models.base_task import TaskStatusEnum
 from services.repositories.task_repository import TaskRepository
+from aws_resources import LambdaDynamoDB
 
 logger = Logger(child=True)
 
 
 class TaskService:
-    def __init__(self, table_name: str):
-        self.repository = TaskRepository(table_name)
+    def __init__(self, resource: LambdaDynamoDB):
+        self.repository = TaskRepository(resource)
 
     def list(self) -> list[Task]:
         return self.repository.list_tasks()
@@ -55,14 +56,13 @@ class TaskService:
             raise BadRequestError("Task '{}' cannot be updated because is in status '{}'.".format(task_id, task.TaskStatus))
 
         try:
-            updated_task = task.copy(update=body)
-            # TODO: pending implementation.
+            updated_fields = task.update(body)
         except ValidationError as e:
             logger.error(e.errors())
             raise BadRequestError("Task '{}' could not be updated.".format(task_id))
 
-        self.repository.update_task(updated_task)
-        return updated_task
+        self.repository.partial_update(task, updated_fields)
+        return task
 
     def update_attachment_input(self, task_id: str, body: dict, user_id: str, bucket_name: str) -> InputS3Content:
         task = self.retrieve_owned_task(task_id, user_id)
@@ -71,7 +71,7 @@ class TaskService:
             raise BadRequestError("Cannot generate signed urls for task '{}' because is not in status 'draft'.".format(task_id))
 
         try:
-            task.update_attachment_input(body, bucket_name)
+            updated_fields = task.update_attachment_input(body, bucket_name)
 
         except AttributeError:
             raise BadRequestError("Field '{}' is not available to upload attachments in task '{}'.".format(body['FieldName'], task_id))
@@ -79,7 +79,7 @@ class TaskService:
         except Exception as e:
             raise BadRequestError(e)
 
-        self.repository.update_partial_inputs(task, [body['FieldName']])
+        self.repository.partial_update(task, updated_fields)
         return getattr(task.Inputs, body['FieldName']).Content
 
     def update_to_submit(self, task_id: str, user_id: str) -> Task:
