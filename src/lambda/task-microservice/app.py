@@ -1,6 +1,7 @@
 import os
 
-from boto3 import resource
+import boto3
+from botocore.config import Config
 from aws_lambda_powertools import Logger, Tracer
 from aws_lambda_powertools.logging import correlation_paths
 from aws_lambda_powertools.utilities.typing import LambdaContext
@@ -15,15 +16,15 @@ logger = Logger()
 
 STAGE_PREFIX = '/' + os.getenv('API_STAGE', 'dev')
 _DYNAMODB_RESOURCE = {
-    'resource' : resource('dynamodb'),
+    'resource' : boto3.resource('dynamodb'),
     'table_name' : os.getenv('TABLE_NAME')
 }
 _S3_RESOURCE = {
-    'resource' : resource('s3'),
+    'client' : boto3.client('s3', config=Config(signature_version='s3v4')),
     'bucket_name' : os.getenv('ATTACHMENTS_BUCKET_NAME')
 }
 _SQS_RESOURCE = {
-    'resource' : resource('sqs'),
+    'resource' : boto3.resource('sqs'),
     'queue_url' : os.getenv('TASK_QUEUE_URL')
 }
 

@@ -1,3 +1,4 @@
+from datetime import datetime
 from pydantic import ValidationError
 from aws_lambda_powertools import Logger
 from aws_lambda_powertools.event_handler.exceptions import (
@@ -80,12 +81,17 @@ class TaskService:
             raise BadRequestError(e)
 
         self.repository.partial_update(task, updated_fields)
-        return getattr(task.Inputs, body['FieldName']).Content
+        return getattr(task.Inputs, body['FieldName'])
 
     def update_to_submit(self, task_id: str, user_id: str) -> Task:
         task = self.retrieve_owned_task(task_id, user_id)
 
         if task.TaskStatus != TaskStatusEnum.DRAFT:
             raise BadRequestError("Task '{}' cannot be submitted because is in status '{}'.".format(task_id, task.TaskStatus))
+
+        task.TaskStatus = TaskStatusEnum.QUEUED
+        task.ModifiedAt = datetime.utcnow()
+
+        self.repository.partial_update(task, ['TaskStatus', 'ModifiedAt'])
 
         return task

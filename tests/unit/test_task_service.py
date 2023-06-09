@@ -7,7 +7,7 @@ from aws_lambda_powertools.event_handler.exceptions import BadRequestError
 sys.path.append('src/lambda/task-microservice')
 
 from services.task_service import TaskService
-from models.task import Task
+from models.task import Task, TaskStatusEnum
 
 from tests import mocks
 
@@ -60,3 +60,15 @@ class TestTaskService:
         table_mock.get_item.assert_called_once_with(Key=dynamodb_key)
         assert update_kwargs['Key'] == dynamodb_key
         assert {'Name', 'Description', 'Inputs.Geography', 'ModifiedAt'} == set(update_kwargs['ExpressionAttributeNames'].values())
+
+    def test_update_to_submit(self, task_service, table_mock):
+        dynamodb_key = Task.build_dynamodb_key(mocks.DRAFT_TASK['Id'])
+        table_mock.get_item.return_value = {'Item': mocks.DRAFT_TASK}
+
+        task = task_service.update_to_submit(mocks.DRAFT_TASK['Id'], mocks.USER_ID)
+        assert task.TaskStatus == TaskStatusEnum.QUEUED
+        update_kwargs = table_mock.update_item.call_args.kwargs
+
+        table_mock.get_item.assert_called_once_with(Key=dynamodb_key)
+        assert update_kwargs['Key'] == dynamodb_key
+        assert {'TaskStatus', 'ModifiedAt'} == set(update_kwargs['ExpressionAttributeNames'].values())
