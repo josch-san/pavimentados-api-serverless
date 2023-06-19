@@ -258,12 +258,10 @@ components:
           type: string
         Description:
           type: string
-        # TaskTypeId:
-        #   type: integer
         Inputs:
           type: object
       required:
-        - TaskTypeId
+        - Inputs
 
     TaskInputsUpdatePayload:
       type: object
