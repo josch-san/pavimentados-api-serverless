@@ -64,7 +64,7 @@ def update_task(taskId: str):
 @tracer.capture_method
 def generate_attachment_upload_url(taskId: str):
     task_service = TaskService(router.context.get('dynamodb_resource'))
-    storage_service = StorageService()
+    storage_service = StorageService(router.context.get('s3_resource'))
 
     input_s3_content = task_service.update_attachment_input(
         taskId,

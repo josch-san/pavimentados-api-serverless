@@ -96,6 +96,10 @@ Resources:
                   - s3:GetObject
                   - s3:PutObject
                 Resource: !Sub 'arn:aws:s3:::${AttachmentsBucketName}/*'
+              - 
+                Effect: Allow
+                Action: sqs:SendMessage
+                Resource: !GetAtt InferenceQueue.Arn
 
   ApiGatewayRole:
     Type: AWS::IAM::Role

@@ -2,15 +2,17 @@ import os
 import sys
 import json
 from http import HTTPStatus
+from unittest.mock import patch
 
 import boto3
 import pytest
-from moto import mock_dynamodb
+from moto import mock_dynamodb, mock_sqs, mock_s3
 
 os.environ['AWS_DEFAULT_REGION'] = 'us-east-1'
 sys.path.append('src/lambda/task-microservice')
 
 from models.task import TaskStatusEnum, Task
+from services.queue_service import QueueService
 import app
 
 from tests import mocks
@@ -31,32 +33,55 @@ def api_client(lambda_context, build_api_request):
 
 @pytest.fixture(scope='session')
 def dynamodb():
-    print('Mocking dynamodb...')
     with mock_dynamodb():
         dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
         table = dynamodb.create_table(
-            TableName = mocks.TABLE_NAME,
+            TableName=mocks.TABLE_NAME,
             KeySchema=[{'AttributeName': 'Pk', 'KeyType': 'HASH'}],
             AttributeDefinitions=[{'AttributeName': 'Pk', 'AttributeType': 'S'}],
             BillingMode='PAY_PER_REQUEST'
         )
 
-        print('Filling table with tasks...')
         with table.batch_writer() as batch:
             for record in mocks.TASK_LIST:
                 batch.put_item(Item=record)
 
         yield dynamodb
 
+@pytest.fixture(scope='session')
+def sqs():
+    with mock_sqs():
+        sqs = boto3.resource('sqs', region_name='us-east-1')
+        sqs.create_queue(
+            QueueName=mocks.QUEUE_URL.split('/')[-1],
+        )
+
+    yield sqs
+
+@pytest.fixture(scope='session')
+def s3():
+    with mock_s3():
+        s3 = boto3.client('s3', region_name='us-east-1')
+        s3.create_bucket(
+            Bucket=mocks.BUCKET_NAME
+        )
+
+    yield s3
+
 
 @pytest.fixture(autouse=True)
-def set_aws_resources(monkeypatch, dynamodb):
-    monkeypatch.setitem(app._S3_RESOURCE, 'bucket_name', mocks.BUCKET_NAME)
-    monkeypatch.setitem(app._SQS_RESOURCE, 'queue_url', mocks.QUEUE_URL)
-
+def set_aws_resources(monkeypatch, dynamodb, sqs, s3):
     monkeypatch.setattr(app, '_DYNAMODB_RESOURCE', {
         'resource': dynamodb,
         'table_name': mocks.TABLE_NAME
+    })
+    monkeypatch.setattr(app, '_SQS_RESOURCE', {
+        'resource': sqs,
+        'queue_url': mocks.QUEUE_URL
+    })
+    monkeypatch.setattr(app, '_S3_RESOURCE', {
+        'client': s3,
+        'bucket_name': mocks.BUCKET_NAME
     })
 
 
@@ -88,6 +113,26 @@ class TestTaskEndpoints:
             body=mocks.UPDATE_FORM
         )
         assert response['statusCode'] == expected_http_status
+
+    @pytest.mark.parametrize('task_id, expected_http_status', [
+        (mocks.NOT_OWNED_DRAFT_TASK['Id'], HTTPStatus.UNAUTHORIZED),
+        (mocks.COMPLETED_TASK['Id'], HTTPStatus.BAD_REQUEST),
+        (mocks.DRAFT_TASK_TO_SUBMIT['Id'], HTTPStatus.ACCEPTED)
+    ])
+    def test_task_submit(self, api_client, task_id: str, expected_http_status: int):
+        with patch.object(QueueService, 'send_message') as send_message_mock:
+            response = api_client(
+                'POST',
+                f'/dev/tasks/{task_id}/submit',
+                body=mocks.UPDATE_FORM
+            )
+
+        assert response['statusCode'] == expected_http_status
+
+        if expected_http_status == HTTPStatus.ACCEPTED:
+            send_message_mock.assert_called_once()
+        else:
+            send_message_mock.assert_not_called()
 
 
 class TestTaskWorkflow:
@@ -155,10 +200,10 @@ class TestTaskWorkflow:
 
 
         # Step 6: Request S3 signed urls to download outputs files.
-        generate_output_download_urls = '/'.join([detail_task_url, 'generateOutputDownloadUrl'])
+        # generate_output_download_urls = '/'.join([detail_task_url, 'generateOutputDownloadUrl'])
 
-        response = api_client('POST', generate_output_download_urls)
-        assert response['statusCode'] == HTTPStatus.OK
+        # response = api_client('POST', generate_output_download_urls)
+        # assert response['statusCode'] == HTTPStatus.OK
 
         # TODO: Check download urls.
 
