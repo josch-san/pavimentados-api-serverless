@@ -1,0 +1,2 @@
+pavimentados==0.29.1
+awswrangler==3.2.1
