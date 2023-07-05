@@ -48,7 +48,7 @@ class TestTaskService:
 
         table_mock.get_item.assert_called_once_with(Key=dynamodb_key)
         assert update_kwargs['Key'] == dynamodb_key
-        assert {'Inputs.' + payload['FieldName'], 'ModifiedAt'} == set(update_kwargs['ExpressionAttributeNames'].values())
+        assert {'Inputs', payload['FieldName'], 'ModifiedAt'} == set(update_kwargs['ExpressionAttributeNames'].values())
 
     def test_update_task(self, task_service, table_mock):
         dynamodb_key = Task.build_dynamodb_key(mocks.DRAFT_TASK['Id'])
@@ -59,7 +59,7 @@ class TestTaskService:
 
         table_mock.get_item.assert_called_once_with(Key=dynamodb_key)
         assert update_kwargs['Key'] == dynamodb_key
-        assert {'Name', 'Description', 'Inputs.Geography', 'ModifiedAt'} == set(update_kwargs['ExpressionAttributeNames'].values())
+        assert {'Name', 'Description', 'Inputs', 'Geography', 'ModifiedAt'} == set(update_kwargs['ExpressionAttributeNames'].values())
 
     def test_update_to_submit(self, task_service, table_mock):
         dynamodb_key = Task.build_dynamodb_key(mocks.DRAFT_TASK['Id'])
