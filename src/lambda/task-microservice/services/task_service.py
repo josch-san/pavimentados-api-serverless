@@ -23,8 +23,8 @@ class TaskService:
     def list(self) -> list[Task]:
         return self.repository.list_tasks()
 
-    def create(self, form: dict, user_id: str, bucket_name: str) -> Task:
-        form['UserId'] = user_id
+    def create(self, form: dict, user_sub: str, bucket_name: str) -> Task:
+        form['UserSub'] = user_sub
 
         try:
             task = self.repository.create_task(form, bucket_name)
@@ -42,16 +42,16 @@ class TaskService:
 
         return task
 
-    def retrieve_owned_task(self, task_id: str, user_id: str) -> Task:
+    def retrieve_owned_task(self, task_id: str, user_sub: str) -> Task:
         task = self.retrieve(task_id)
 
-        if str(task.UserId) != user_id:
+        if str(task.UserSub) != user_sub:
             raise UnauthorizedError("You are not authorized to modify task '{}'".format(task_id))
 
         return task
 
-    def update(self, task_id: str, body: dict, user_id: str) -> Task:
-        task = self.retrieve_owned_task(task_id, user_id)
+    def update(self, task_id: str, body: dict, user_sub: str) -> Task:
+        task = self.retrieve_owned_task(task_id, user_sub)
 
         if task.TaskStatus != TaskStatusEnum.DRAFT:
             raise BadRequestError("Task '{}' cannot be updated because is in status '{}'.".format(task_id, task.TaskStatus))
@@ -65,8 +65,8 @@ class TaskService:
         self.repository.partial_update(task, updated_fields)
         return task
 
-    def update_attachment_input(self, task_id: str, body: dict, user_id: str, bucket_name: str) -> InputS3Content:
-        task = self.retrieve_owned_task(task_id, user_id)
+    def update_attachment_input(self, task_id: str, body: dict, user_sub: str, bucket_name: str) -> InputS3Content:
+        task = self.retrieve_owned_task(task_id, user_sub)
 
         if task.TaskStatus != TaskStatusEnum.DRAFT:
             raise BadRequestError("Cannot generate signed urls for task '{}' because is not in status 'draft'.".format(task_id))
@@ -83,8 +83,8 @@ class TaskService:
         self.repository.partial_update(task, updated_fields)
         return getattr(task.Inputs, body['FieldName'])
 
-    def update_to_submit(self, task_id: str, user_id: str) -> Task:
-        task = self.retrieve_owned_task(task_id, user_id)
+    def update_to_submit(self, task_id: str, user_sub: str) -> Task:
+        task = self.retrieve_owned_task(task_id, user_sub)
 
         if task.TaskStatus != TaskStatusEnum.DRAFT:
             raise BadRequestError("Task '{}' cannot be submitted because is in status '{}'.".format(task_id, task.TaskStatus))

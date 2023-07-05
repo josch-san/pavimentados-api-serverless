@@ -1,0 +1,104 @@
+Comment: pavimenta2#road_sections task inference workflow.
+StartAt: BuildPayload
+
+States:
+  BuildPayload:
+    Type: Task
+    Resource: ${BuildPayloadFunctionArn}
+    Comment: Build input payload to execute SageMaker inference.
+    ResultSelector:
+      InferenceParameters.$: $
+    Next: SetProcessingStatus
+    Catch:
+      - ErrorEquals: [States.ALL]
+        ResultPath: $.ErrorInfo
+        Next: SetFailedStatus
+
+  SetProcessingStatus:
+    Type: Pass
+    # Resource: ${UpdateTaskFunctionArn}
+    Comment: Update task status to in_progress.
+    Parameters:
+      TaskKey.$: $$.Execution.Id
+      OutputMessage: ''
+      TaskStatus: processing
+    ResultPath: $.LastStatus
+    Next: InferenceRoadSection
+
+  InferenceRoadSection:
+    Type: Task
+    Resource: arn:aws:states:::sagemaker:createProcessingJob.sync
+    Parameters:
+      RoleArn: ${InferenceRoleArn}
+      ProcessingJobName.$: $.InferenceParameters.JobName
+      ProcessingInputs.$: $.InferenceParameters.InputConfig
+      ProcessingOutputConfig:
+        Outputs.$: $.InferenceParameters.OutputConfig
+      AppSpecification:
+        ContainerEntrypoint: [python, /opt/ml/processing/code/entrypoint.py]
+        ContainerArguments.$: $.InferenceParameters.ContainerArguments
+        ImageUri: 763104351884.dkr.ecr.us-east-1.amazonaws.com/tensorflow-training:2.6.2-gpu-py38-cu112-ubuntu20.04
+        # ImageUri: 763104351884.dkr.ecr.us-east-1.amazonaws.com/tensorflow-training:2.11.0-gpu-py39-cu112-ubuntu20.04-sagemaker
+      ProcessingResources:
+        ClusterConfig:
+          InstanceCount: 1
+          InstanceType: ml.p2.xlarge
+          VolumeSizeInGB: 20
+      Environment:
+        AWS_DEFAULT_REGION: ${Region}
+        # DATABASE_NAME: ${DatabaseName}
+      Tags:
+        - Key: Application
+          Value: Pavimenta2
+        - Key: Product
+          Value: Infra
+        - Key: Environment
+          Value: ${Mode}
+    Catch:
+      - ErrorEquals: [States.ALL]
+        ResultPath: $.ErrorInfo
+        Next: SetFailedStatus
+    ResultSelector:
+      ProcessingJobArn.$: $.ProcessingJobArn
+      ProcessingJobName.$: $.ProcessingJobName
+      ProcessingJobStatus.$: $.ProcessingJobStatus
+      ProcessingStartTime.$: $.ProcessingStartTime
+      ProcessingEndTime.$: $.ProcessingEndTime
+    ResultPath: $.InferenceResult
+    Next: DiscoverOutputs
+
+  DiscoverOutputs:
+    Type: Task
+    Resource: ${DiscoverOutputsFunctionArn}
+    Comment: Write outputs references in task database.
+    Parameters:
+      OutputConfig.$: $.InferenceParameters.OutputConfig
+    ResultPath: $.AvailableFiles
+    Next: SetCompletedStatus
+
+  SetCompletedStatus:
+    Type: Pass
+    # Resource: ${UpdateTaskFunctionArn}
+    Comment: Update task status to completed.
+    Parameters:
+      TaskKey.$: $$.Execution.Id
+      OutputMessage: Successful processing
+      Outputs.$: $.AvailableFiles
+      TaskStatus: completed
+    ResultPath: $.LastStatus
+    End: True
+
+  SetFailedStatus:
+    Type: Pass
+    # Resource: ${UpdateTaskFunctionArn}
+    Comment: Update task status to failed.
+    Parameters:
+      TaskKey.$: $$.Execution.Id
+      OutputMessage.$: $.ErrorInfo.Error
+      TaskStatus: failed
+      # OutputMessage.$: $.ErrorInfo.Cause
+    ResultPath: $.LastStatus
+    Next: FailExecution
+
+  FailExecution:
+    Type: Fail

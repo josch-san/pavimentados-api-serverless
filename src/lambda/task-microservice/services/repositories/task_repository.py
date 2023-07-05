@@ -42,10 +42,19 @@ class TaskRepository:
             key_expression = f'#key{index:02}'
             value_expression = f':value{index:02}'
 
-            attribute_names[key_expression] = field_key
-            attribute_values[value_expression] = raw_task[field_key] \
-                if not field_key.startswith('Inputs.') \
-                else raw_task['Inputs'][field_key.replace('Inputs.', '')]
+            if field_key.startswith('Inputs.'):
+                attribute_names['#inputs'] = 'Inputs'
+
+                nested_field_key = field_key.replace('Inputs.', '')
+                attribute_names[key_expression] = nested_field_key
+                attribute_values[value_expression] = raw_task['Inputs'][nested_field_key]
+
+                key_expression = f'#inputs.{key_expression}'
+
+            else:
+                attribute_names[key_expression] = field_key
+                attribute_values[value_expression] = raw_task[field_key]
+
 
             update_expression.append(f'{key_expression} = {value_expression}')
 

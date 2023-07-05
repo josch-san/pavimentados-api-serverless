@@ -21,7 +21,7 @@ MODELS_BASE_PATH = Path(os.environ.get('MODELS_BASE_PATH', '/opt/ml/processing/m
 
 GPU_ENABLED = os.environ.get('GPU_ENABLED', 'false').lower() == 'true'
 DATABASE_NAME = os.environ.get('DATABASE_NAME', 'pavimenta2')
-DATALAKE_PARTITIONS_KEYS = ['tenant', 'user', 'geography', 'task']
+DATALAKE_PARTITIONS_KEYS = ['user', 'geography', 'task']
 
 
 from pavimentados.processing.processors import MultiImage_Processor

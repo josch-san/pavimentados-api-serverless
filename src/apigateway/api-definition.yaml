@@ -292,8 +292,8 @@ components:
           type: string
         Description:
           type: string
-        UserId:
-          type: integer
+        UserSub:
+          type: string
         CreatedAt:
           type: string
           format: date-time

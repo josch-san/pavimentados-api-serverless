@@ -28,7 +28,7 @@ class BaseTask(BaseModel):
     Id: UUID = Field(default_factory=uuid4)
     Name: str
     Description: Optional[str]
-    UserId: UUID
+    UserSub: UUID
     CreatedAt: datetime = Field(default_factory=datetime.utcnow)
     ModifiedAt: datetime = Field(default_factory=datetime.utcnow)
     TaskStatus: TaskStatusEnum = TaskStatusEnum.DRAFT

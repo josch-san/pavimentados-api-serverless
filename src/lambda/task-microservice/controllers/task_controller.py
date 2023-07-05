@@ -11,7 +11,7 @@ tracer = Tracer()
 router = APIGatewayRouter()
 
 
-def get_user_id(event: APIGatewayProxyEvent):
+def get_user_sub(event: APIGatewayProxyEvent):
     return event.request_context.authorizer.claims['sub']
 
 
@@ -33,7 +33,7 @@ def create_task():
 
     task = task_service.create(
         router.current_event.json_body,
-        get_user_id(router.current_event),
+        get_user_sub(router.current_event),
         router.context.get('s3_resource').bucket_name
     )
 
@@ -56,7 +56,7 @@ def update_task(taskId: str):
     return task_service.update(
         taskId,
         router.current_event.json_body,
-        get_user_id(router.current_event)
+        get_user_sub(router.current_event)
     )
 
 
@@ -69,7 +69,7 @@ def generate_attachment_upload_url(taskId: str):
     input_s3_content = task_service.update_attachment_input(
         taskId,
         router.current_event.json_body,
-        get_user_id(router.current_event),
+        get_user_sub(router.current_event),
         router.context.get('s3_resource').bucket_name
     )
 
@@ -85,7 +85,7 @@ def submit(taskId: str):
 
     task = task_service.update_to_submit(
         taskId,
-        get_user_id(router.current_event)
+        get_user_sub(router.current_event)
     )
 
     queue_service.send_message(task.build_sqs_message())

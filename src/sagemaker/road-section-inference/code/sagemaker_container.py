@@ -9,7 +9,6 @@ logger = logging.getLogger()
 def parse_args(inputs_base_path: Path):
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--tenant", type=str, required=True)
     parser.add_argument("--task", type=str, required=True)
     parser.add_argument("--user", type=str, required=True)
 

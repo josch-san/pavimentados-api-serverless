@@ -24,7 +24,7 @@ def task_service(table_mock):
 
 class TestTaskService:
     def test_create_task(self, task_service, table_mock):
-        task_service.create(mocks.VIDEO_GPS_CREATE_FORM.copy(), mocks.USER_ID, mocks.BUCKET_NAME)
+        task_service.create(mocks.VIDEO_GPS_CREATE_FORM.copy(), mocks.USER_SUB, mocks.BUCKET_NAME)
         table_mock.put_item.assert_called_once()
 
     def test_create_incomplete_form(self, task_service, table_mock):
@@ -32,7 +32,7 @@ class TestTaskService:
         form['Inputs'].pop('Type')
 
         with pytest.raises(BadRequestError):
-            task_service.create(form, mocks.USER_ID, mocks.BUCKET_NAME)
+            task_service.create(form, mocks.USER_SUB, mocks.BUCKET_NAME)
         table_mock.put_item.assert_not_called()
 
     @pytest.mark.parametrize('task, payload', [
@@ -43,7 +43,7 @@ class TestTaskService:
         dynamodb_key = Task.build_dynamodb_key(task['Id'])
         table_mock.get_item.return_value = {'Item': task}
 
-        task_service.update_attachment_input(task['Id'], payload, mocks.USER_ID, mocks.BUCKET_NAME)
+        task_service.update_attachment_input(task['Id'], payload, mocks.USER_SUB, mocks.BUCKET_NAME)
         update_kwargs = table_mock.update_item.call_args.kwargs
 
         table_mock.get_item.assert_called_once_with(Key=dynamodb_key)
@@ -54,7 +54,7 @@ class TestTaskService:
         dynamodb_key = Task.build_dynamodb_key(mocks.DRAFT_TASK['Id'])
         table_mock.get_item.return_value = {'Item': mocks.DRAFT_TASK}
 
-        task_service.update(mocks.DRAFT_TASK['Id'], mocks.UPDATE_FORM, mocks.USER_ID)
+        task_service.update(mocks.DRAFT_TASK['Id'], mocks.UPDATE_FORM, mocks.USER_SUB)
         update_kwargs = table_mock.update_item.call_args.kwargs
 
         table_mock.get_item.assert_called_once_with(Key=dynamodb_key)
@@ -65,7 +65,7 @@ class TestTaskService:
         dynamodb_key = Task.build_dynamodb_key(mocks.DRAFT_TASK['Id'])
         table_mock.get_item.return_value = {'Item': mocks.DRAFT_TASK}
 
-        task = task_service.update_to_submit(mocks.DRAFT_TASK['Id'], mocks.USER_ID)
+        task = task_service.update_to_submit(mocks.DRAFT_TASK['Id'], mocks.USER_SUB)
         assert task.TaskStatus == TaskStatusEnum.QUEUED
         update_kwargs = table_mock.update_item.call_args.kwargs
 

@@ -93,7 +93,7 @@ class Task(BaseTask):
     @property
     def s3_key_path(self):
         application, service = self.AppServiceSlug.split('#')
-        return f'{application}/user:{self.UserId}/{service}/{self.Id}/inputs'
+        return f'{application}/user:{self.UserSub}/{service}/{self.Id}/inputs'
 
     def initialize_inputs(self, inputs: dict, bucket_name: str) -> None:
         s3_base_path = {
