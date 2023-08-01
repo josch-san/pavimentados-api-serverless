@@ -8,13 +8,13 @@ class InferenceBuilder(object):
     COMPRESSED_FORMATS = r'\.zip$'
     SUPPORTED_INPUT_TYPES = ['video_gps', 'image_bundle_gps', 'image_bundle']
 
-    def __init__(self, task_key, base_code_s3uri):
-        self.task_key = task_key
+    def __init__(self, task_id, base_code_s3uri):
+        self.task_id = task_id
         self.base_code_s3uri = base_code_s3uri
 
     def build_inference_parameters(self, payload):
         return {
-            'JobName': mappers.get_unique_job_name(self.task_key, 'road-sections'),
+            'JobName': mappers.get_unique_job_name(self.task_id, 'road-sections'),
             'ContainerArguments': payload['container_args'],
             'InputConfig': [
                 mappers.get_processing_input('code',
@@ -37,7 +37,7 @@ class InferenceBuilder(object):
 
         inference_container_args = [
             '--user', user_sub,
-            '--task', self.task_key,
+            '--task', self.task_id,
             '--type', inputs['Type'],
             '--geography', inputs['Geography']
         ]
@@ -82,7 +82,6 @@ class InferenceBuilder(object):
             ])
 
         payload.update({
-            'task_key': self.task_key,
             'container_args': inference_container_args,
         })
 

@@ -46,6 +46,13 @@ class InputS3ItemContent(InputS3Content):
 
         return content
 
+    @property
+    def payload_content(self):
+        return {
+            'Key': self.Content.Key,
+            'Bucket': self.Content.Bucket
+        }
+
 
 class InputS3ArrayContent(InputS3Content):
     Extension: str
@@ -66,3 +73,13 @@ class InputS3ArrayContent(InputS3Content):
             content[0]['Key'] = '/'.join([content[0]['Key'], file_name])
 
         return content
+
+    @property
+    def payload_content(self):
+        return [
+            {
+                'Key': item.Key,
+                'Bucket': item.Bucket
+            }
+            for item in self.Content
+        ]

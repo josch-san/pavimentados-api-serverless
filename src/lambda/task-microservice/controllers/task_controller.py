@@ -88,5 +88,7 @@ def submit(taskId: str):
         get_user_sub(router.current_event)
     )
 
-    queue_service.send_message(task.build_sqs_message())
+    queue_service.send_message(
+        task.build_event_payload()
+    )
     return task, HTTPStatus.ACCEPTED
