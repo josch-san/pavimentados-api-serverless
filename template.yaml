@@ -18,6 +18,13 @@ Parameters:
   ArtifactsBucketName:
     Type: String
     Description: Artifacts bucket name
+  ProcessorType:
+    Type: String
+    Description: Processor's type for inference container
+    Default: cpu
+    AllowedValues:
+      - cpu
+      - gpu
   Mode:
     Type: String
     Description: Environment context
@@ -38,6 +45,13 @@ Mappings:
     prod:
       ModeSuffix: ''
       ApiStage: v1
+  ProcessorMap:
+    cpu:
+      ImageTag: 2.6.2-cpu-py38
+      InstanceType: ml.t3.xlarge
+    gpu:
+      ImageTag: 2.6.2-gpu-py38
+      InstanceType: ml.p3.2xlarge
 
 Globals:
   Function:
@@ -216,6 +230,13 @@ Resources:
                 Resource: '*'
               - 
                 Effect: Allow
+                Action:
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:BatchGetImage
+                Resource: !GetAtt RoadSectionInferenceRepository.Arn
+              - 
+                Effect: Allow
                 Action: s3:ListBucket
                 Resource:
                   - !Sub 'arn:aws:s3:::${AttachmentsBucketName}'
@@ -230,6 +251,14 @@ Resources:
                 Effect: Allow
                 Action: s3:GetObject
                 Resource: !Sub 'arn:aws:s3:::${ArtifactsBucketName}/pavimenta2/sagemaker/*'
+
+  RoadSectionInferenceRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      ImageTagMutability: MUTABLE
+      RepositoryName: !Sub
+        - 'pavimenta2/road-section-inference${suffix}'
+        - suffix: !FindInMap [ModeMap, !Ref Mode, ModeSuffix]
 
   PavimentadosApi:
     Type: AWS::Serverless::Api
@@ -343,6 +372,10 @@ Resources:
             Location: src/stepfunctions/RoadSectionInferenceWorkflow.yaml
       DefinitionSubstitutions:
         Mode: !Ref Mode
+        InferenceInstanceType: !FindInMap [ProcessorMap, !Ref ProcessorType, InstanceType]
+        InferenceRepositoryUri: !Sub
+          - '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${RoadSectionInferenceRepository}:${dockerImageTag}'
+          - dockerImageTag: !FindInMap [ProcessorMap, !Ref ProcessorType, ImageTag]
         # UpdateTaskFunctionArn: !GetAtt UpdateTaskFunction.Arn
         BuildPayloadFunctionArn: !GetAtt BuildPayloadFunction.Arn
         DiscoverOutputsFunctionArn: !GetAtt DiscoverOutputsFunction.Arn
