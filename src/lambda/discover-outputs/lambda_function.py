@@ -1,4 +1,5 @@
 import boto3
+from boto3.dynamodb.types import TypeSerializer
 
 
 def lambda_handler(event, context):
@@ -19,8 +20,17 @@ def lambda_handler(event, context):
             for item in response['Contents']
         })
 
-    return available_files
+    formatted_available_files = to_dynamodb_format(available_files)
+    return formatted_available_files
 
 
 def to_camel_case(snake_str):
     return ''.join(x.capitalize() for x in snake_str.lower().split('_'))
+
+
+def to_dynamodb_format(object):
+    serializer = TypeSerializer()
+    return {
+        key: serializer.serialize(value)
+        for key, value in object.items()
+    }

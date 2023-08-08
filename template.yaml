@@ -107,9 +107,12 @@ Resources:
               - 
                 Effect: Allow
                 Action:
+                  - s3:ListBucket
                   - s3:GetObject
                   - s3:PutObject
-                Resource: !Sub 'arn:aws:s3:::${AttachmentsBucketName}/*'
+                Resource:
+                  - !Sub 'arn:aws:s3:::${AttachmentsBucketName}'
+                  - !Sub 'arn:aws:s3:::${AttachmentsBucketName}/*'
               - 
                 Effect: Allow
                 Action: sqs:SendMessage
@@ -176,6 +179,12 @@ Resources:
                   - events:PutRule
                   - events:DescribeRule
                 Resource: !Sub 'arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/StepFunctionsGetEventsForSageMakerProcessingJobsRule'
+              - 
+                Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:UpdateItem
+                Resource: !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${InfraTableName}'
               - 
                 Effect: Allow
                 Action: lambda:InvokeFunction
@@ -372,6 +381,7 @@ Resources:
             Location: src/stepfunctions/RoadSectionInferenceWorkflow.yaml
       DefinitionSubstitutions:
         Mode: !Ref Mode
+        TableName: !Ref InfraTableName
         InferenceInstanceType: !FindInMap [ProcessorMap, !Ref ProcessorType, InstanceType]
         InferenceRepositoryUri: !Sub
           - '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${RoadSectionInferenceRepository}:${dockerImageTag}'
