@@ -18,6 +18,13 @@ Parameters:
   ArtifactsBucketName:
     Type: String
     Description: Artifacts bucket name
+  ProcessorType:
+    Type: String
+    Description: Processor's type for inference container
+    Default: cpu
+    AllowedValues:
+      - cpu
+      - gpu
   Mode:
     Type: String
     Description: Environment context
@@ -38,6 +45,13 @@ Mappings:
     prod:
       ModeSuffix: ''
       ApiStage: v1
+  ProcessorMap:
+    cpu:
+      ImageTag: 2.6.2-cpu-py38
+      InstanceType: ml.t3.xlarge
+    gpu:
+      ImageTag: 2.6.2-gpu-py38
+      InstanceType: ml.p3.2xlarge
 
 Globals:
   Function:
@@ -62,7 +76,7 @@ Resources:
       RoleName: !Sub
         - 'PavimentadosLambdaRole${suffix}'
         - suffix: !FindInMap [ModeMap, !Ref Mode, ModeSuffix]
-      Description: 'Pavimentados Lambda service role.'
+      Description: Pavimentados Lambda service role.
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -74,7 +88,7 @@ Resources:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
         - arn:aws:iam::aws:policy/AWSXRayDaemonWriteAccess
       Policies:
-        - PolicyName: infra-lambda-policy
+        - PolicyName: pavimentados-lambda-policy
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
@@ -93,9 +107,12 @@ Resources:
               - 
                 Effect: Allow
                 Action:
+                  - s3:ListBucket
                   - s3:GetObject
                   - s3:PutObject
-                Resource: !Sub 'arn:aws:s3:::${AttachmentsBucketName}/*'
+                Resource:
+                  - !Sub 'arn:aws:s3:::${AttachmentsBucketName}'
+                  - !Sub 'arn:aws:s3:::${AttachmentsBucketName}/*'
               - 
                 Effect: Allow
                 Action: sqs:SendMessage
@@ -108,7 +125,7 @@ Resources:
       RoleName: !Sub
         - 'PavimentadosApiGatewayRole${suffix}'
         - suffix: !FindInMap [ModeMap, !Ref Mode, ModeSuffix]
-      Description: 'Pavimentados Api Gateway service role.'
+      Description: Pavimentados Api Gateway service role.
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -117,7 +134,7 @@ Resources:
               Service: apigateway.amazonaws.com
             Action: sts:AssumeRole
       Policies:
-        - PolicyName: infra-apigateway-policy
+        - PolicyName: pavimentados-apigateway-policy
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
@@ -125,6 +142,132 @@ Resources:
                 Effect: Allow
                 Action: lambda:InvokeFunction
                 Resource: !GetAtt TaskMicroserviceFunction.Arn
+
+  StatesRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /service-role/
+      RoleName: !Sub
+        - 'PavimentadosStatesRole${suffix}'
+        - suffix: !FindInMap [ModeMap, !Ref Mode, ModeSuffix]
+      Description: Pavimentados States service role.
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: states.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: pavimentados-states-policy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - 
+                Effect: Allow
+                Action:
+                  - xray:PutTraceSegments
+                  - xray:PutTelemetryRecords
+                  - xray:GetSamplingRules
+                  - xray:GetSamplingTargets
+                # TODO: Pending to review wildcards resource
+                Resource: '*'
+              - 
+                Effect: Allow
+                Action:
+                  - events:PutTargets
+                  - events:PutRule
+                  - events:DescribeRule
+                Resource: !Sub 'arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/StepFunctionsGetEventsForSageMakerProcessingJobsRule'
+              - 
+                Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:UpdateItem
+                Resource: !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${InfraTableName}'
+              - 
+                Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource:
+                  - !GetAtt BuildPayloadFunction.Arn
+                  - !GetAtt DiscoverOutputsFunction.Arn
+              - 
+                Effect: Allow
+                Action:
+                  - sagemaker:CreateProcessingJob
+                  - sagemaker:DescribeProcessingJob
+                  - sagemaker:StopProcessingJob
+                  - sagemaker:AddTags
+                Resource: '*'
+              - 
+                Effect: Allow
+                Action: iam:PassRole
+                Resource: !GetAtt SageMakerRole.Arn
+
+  SageMakerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /service-role/
+      RoleName: !Sub
+        - 'PavimentadosSageMakerRole${suffix}'
+        - suffix: !FindInMap [ModeMap, !Ref Mode, ModeSuffix]
+      Description: Pavimentados SageMaker service role.
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: sagemaker.amazonaws.com
+            Action: sts:AssumeRole
+      # ManagedPolicyArns:
+      #   - !Ref DatalakeReadPolicy
+      #   - !Ref DatalakeWritePolicy
+      Policies:
+        - PolicyName: pavimentados-sagemaker-policy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - 
+                Effect: Allow
+                Action:
+                  - cloudwatch:PutMetricData
+                  - logs:CreateLogStream
+                  - logs:CreateLogGroup
+                  - logs:DescribeLogStreams
+                  - logs:PutLogEvents
+                  - ecr:GetAuthorizationToken
+                Resource: '*'
+              - 
+                Effect: Allow
+                Action:
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:BatchGetImage
+                Resource: !GetAtt RoadSectionInferenceRepository.Arn
+              - 
+                Effect: Allow
+                Action: s3:ListBucket
+                Resource:
+                  - !Sub 'arn:aws:s3:::${AttachmentsBucketName}'
+                  - !Sub 'arn:aws:s3:::${ArtifactsBucketName}'
+              - 
+                Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource: !Sub 'arn:aws:s3:::${AttachmentsBucketName}/pavimenta2/*'
+              - 
+                Effect: Allow
+                Action: s3:GetObject
+                Resource: !Sub 'arn:aws:s3:::${ArtifactsBucketName}/pavimenta2/sagemaker/*'
+
+  RoadSectionInferenceRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      ImageTagMutability: MUTABLE
+      RepositoryName: !Sub
+        - 'pavimenta2/road-section-inference${suffix}'
+        - suffix: !FindInMap [ModeMap, !Ref Mode, ModeSuffix]
 
   PavimentadosApi:
     Type: AWS::Serverless::Api
@@ -199,6 +342,56 @@ Resources:
           ATTACHMENTS_BUCKET_NAME: !Ref AttachmentsBucketName
           TASK_QUEUE_URL: !GetAtt InferenceQueue.QueueUrl
 
+  BuildPayloadFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Role: !GetAtt LambdaRole.Arn
+      FunctionName: !Sub
+        - 'pavimentados-build-payload${suffix}'
+        - suffix: !FindInMap [ModeMap, !Ref Mode, ModeSuffix]
+      Description: Prepare input data to parameters on workflow.
+      CodeUri: src/lambda/build-payload
+      Handler: lambda_function.lambda_handler
+      Environment:
+        Variables:
+          BASE_CODE_S3URI: !Sub 's3://${ArtifactsBucketName}/pavimenta2/sagemaker/road-section-inference'
+
+  DiscoverOutputsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Role: !GetAtt LambdaRole.Arn
+      FunctionName: !Sub
+        - 'pavimentados-discover-outputs${suffix}'
+        - suffix: !FindInMap [ModeMap, !Ref Mode, ModeSuffix]
+      Description: Discover output files writed by inference process.
+      CodeUri: src/lambda/discover-outputs
+      Handler: lambda_function.lambda_handler
+
+  RoadSectionInferenceWorkflow:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      Role: !GetAtt StatesRole.Arn
+      Name: !Sub
+        - 'pavimentados-road-section-inference-workflow${suffix}'
+        - suffix: !FindInMap [ModeMap, !Ref Mode, ModeSuffix]
+      Definition:
+        Fn::Transform:
+          Name: AWS::Include
+          Parameters:
+            Location: src/stepfunctions/RoadSectionInferenceWorkflow.yaml
+      DefinitionSubstitutions:
+        Mode: !Ref Mode
+        TableName: !Ref InfraTableName
+        InferenceInstanceType: !FindInMap [ProcessorMap, !Ref ProcessorType, InstanceType]
+        InferenceRepositoryUri: !Sub
+          - '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${RoadSectionInferenceRepository}:${dockerImageTag}'
+          - dockerImageTag: !FindInMap [ProcessorMap, !Ref ProcessorType, ImageTag]
+        # UpdateTaskFunctionArn: !GetAtt UpdateTaskFunction.Arn
+        BuildPayloadFunctionArn: !GetAtt BuildPayloadFunction.Arn
+        DiscoverOutputsFunctionArn: !GetAtt DiscoverOutputsFunction.Arn
+        InferenceRoleArn: !GetAtt SageMakerRole.Arn
+        # DatabaseName: !Ref PavimentadosDatabase
+        Region: !Ref AWS::Region
 
 Outputs:
   WebClientId:

@@ -28,7 +28,7 @@ class BaseTask(BaseModel):
     Id: UUID = Field(default_factory=uuid4)
     Name: str
     Description: Optional[str]
-    UserId: UUID
+    UserSub: UUID
     CreatedAt: datetime = Field(default_factory=datetime.utcnow)
     ModifiedAt: datetime = Field(default_factory=datetime.utcnow)
     TaskStatus: TaskStatusEnum = TaskStatusEnum.DRAFT
@@ -71,5 +71,17 @@ class BaseTask(BaseModel):
             # 'Gsi1Pk': 'TASK'
         }
 
-    def build_sqs_message(self) -> str:
-        return self.json(by_alias=True)
+    def build_event_payload(self) -> dict:
+        inputs = {
+            key: getattr(value, 'payload_content', value)
+            for key, value in self.Inputs
+        }
+
+        payload = {
+            key: value
+            for key, value in self.raw_dict().items()
+            if key in ['Id', 'Name', 'AccessLevel', 'AppServiceSlug', 'UserSub']
+        }
+
+        payload['Inputs'] = inputs
+        return payload

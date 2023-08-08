@@ -1,12 +1,12 @@
 TABLE_NAME = 'infra-mock'
 BUCKET_NAME = 'infra-attachments-mock'
 QUEUE_URL = 'https://sqs.us-east-1.amazonaws.com/123456789012/pavimentados-queue-mock'
-USER_ID = '6b456b08-fa1d-4e24-9fbd-be990e023299'
+USER_SUB = '6b456b08-fa1d-4e24-9fbd-be990e023299'
 
 DRAFT_TASK = {
     'Pk': 'TASK#04bcdf96-db09-46cd-909a-781a3f6dcab9',
     'Id': '04bcdf96-db09-46cd-909a-781a3f6dcab9',
-    'UserId': '6b456b08-fa1d-4e24-9fbd-be990e023299',
+    'UserSub': '6b456b08-fa1d-4e24-9fbd-be990e023299',
     'Name': 'Analizando video',
     'Description': 'larga descripcion...',
     'CreatedAt': '2023-05-19T20:04:17.282Z',
@@ -42,7 +42,7 @@ DRAFT_TASK = {
 NOT_OWNED_DRAFT_TASK = {
     'Pk': 'TASK#145fe967-e83a-4f66-821c-b883c9afebca',
     'Id': '145fe967-e83a-4f66-821c-b883c9afebca',
-    'UserId': 'cb3923d5-7fb9-4363-8eb9-43dbf0a1185c',
+    'UserSub': 'cb3923d5-7fb9-4363-8eb9-43dbf0a1185c',
     'Name': 'Analizando video',
     'Description': 'larga descripcion...',
     'CreatedAt': '2023-05-19T20:04:17.282Z',
@@ -78,7 +78,7 @@ NOT_OWNED_DRAFT_TASK = {
 DRAFT_TASK_TO_SUBMIT = {
     'Pk': 'TASK#523dfef7-878d-4fca-bbe8-1b3a237e47a4',
     'Id': '523dfef7-878d-4fca-bbe8-1b3a237e47a4',
-    'UserId': '6b456b08-fa1d-4e24-9fbd-be990e023299',
+    'UserSub': '6b456b08-fa1d-4e24-9fbd-be990e023299',
     'Name': 'Road Section images and gps',
     'Description': 'corta descripcion',
     'CreatedAt': '2023-03-21T19:56:33.303Z',
@@ -126,7 +126,7 @@ DRAFT_TASK_TO_SUBMIT = {
 COMPLETED_TASK = {
     'Pk': 'TASK#3bd2c23f-efba-40ec-b969-d490d5fe33bd',
     'Id': '3bd2c23f-efba-40ec-b969-d490d5fe33bd',
-    'UserId': '6b456b08-fa1d-4e24-9fbd-be990e023299',
+    'UserSub': '6b456b08-fa1d-4e24-9fbd-be990e023299',
     'Name': 'Analizando video',
     'Description': 'larga descripcion...',
     'CreatedAt': '2023-05-10T14:12:27.123Z',
@@ -193,6 +193,10 @@ TASK_LIST = [
 
 DRAFT_VIDEO_GPS_TASK = DRAFT_TASK
 DRAFT_IMAGE_BUNDLE_GPS_TASK = DRAFT_TASK_TO_SUBMIT
+QUEUED_TASK = {
+    **DRAFT_TASK_TO_SUBMIT,
+    'TaskStatus': 'queued',
+}
 
 
 ATTACHMENT_URL_VIDEO_FILE_FORM = {

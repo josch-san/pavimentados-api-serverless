@@ -1,0 +1,136 @@
+Comment: pavimenta2#road_sections task inference workflow.
+StartAt: BuildPayload
+
+States:
+  BuildPayload:
+    Type: Task
+    Resource: ${BuildPayloadFunctionArn}
+    Comment: Build input payload to execute SageMaker inference.
+    ResultSelector:
+      InferenceParameters.$: $
+    Catch:
+      - ErrorEquals: [States.ALL]
+        ResultPath: $.ErrorInfo
+        Next: SetFailedStatus
+    Next: SetProcessingStatus
+
+  SetProcessingStatus:
+    Type: Task
+    Resource: arn:aws:states:::dynamodb:updateItem
+    Comment: Update task status to in_progress.
+    Parameters:
+      TableName: ${TableName}
+      Key:
+        Pk:
+          S.$: States.Format('TASK#{}', $$.Execution.Input.Id)
+      UpdateExpression: SET TaskStatus = :new_status, ModifiedAt = :modified_at, OutputMessage = :no_message, Outputs = :no_outputs
+      ExpressionAttributeValues:
+        ':new_status':
+          S: processing
+        ':modified_at':
+          S.$: $$.State.EnteredTime
+        ':no_message':
+          S: ''
+        ':no_outputs':
+          M: {}
+    ResultPath: $.LastStatus
+    Next: InferenceRoadSection
+
+  InferenceRoadSection:
+    Type: Task
+    Resource: arn:aws:states:::sagemaker:createProcessingJob.sync
+    Parameters:
+      RoleArn: ${InferenceRoleArn}
+      ProcessingJobName.$: $.InferenceParameters.JobName
+      ProcessingInputs.$: $.InferenceParameters.InputConfig
+      ProcessingOutputConfig:
+        Outputs.$: $.InferenceParameters.OutputConfig
+      AppSpecification:
+        ContainerEntrypoint: [python, /opt/ml/processing/code/entrypoint.py]
+        ContainerArguments.$: $.InferenceParameters.ContainerArguments
+        ImageUri: ${InferenceRepositoryUri}
+      ProcessingResources:
+        ClusterConfig:
+          InstanceCount: 1
+          InstanceType: ${InferenceInstanceType}
+          VolumeSizeInGB: 20
+      Environment:
+        AWS_DEFAULT_REGION: ${Region}
+        # DATABASE_NAME: ${DatabaseName}
+      Tags:
+        - Key: Application
+          Value: Pavimenta2
+        - Key: Product
+          Value: Infra
+        - Key: Environment
+          Value: ${Mode}
+    Catch:
+      - ErrorEquals: [States.ALL]
+        ResultPath: $.ErrorInfo
+        Next: SetFailedStatus
+    ResultSelector:
+      ProcessingJobArn.$: $.ProcessingJobArn
+      ProcessingJobName.$: $.ProcessingJobName
+      ProcessingJobStatus.$: $.ProcessingJobStatus
+      ProcessingStartTime.$: $.ProcessingStartTime
+      ProcessingEndTime.$: $.ProcessingEndTime
+    ResultPath: $.InferenceResult
+    Next: DiscoverOutputs
+
+  DiscoverOutputs:
+    Type: Task
+    Resource: ${DiscoverOutputsFunctionArn}
+    Comment: Write outputs references in task database.
+    Parameters:
+      OutputConfig.$: $.InferenceParameters.OutputConfig
+    ResultPath: $.AvailableFiles
+    Catch:
+      - ErrorEquals: [States.ALL]
+        ResultPath: $.ErrorInfo
+        Next: SetFailedStatus
+    Next: SetCompletedStatus
+
+  SetCompletedStatus:
+    Type: Task
+    Resource: arn:aws:states:::dynamodb:updateItem
+    Comment: Update task status to completed.
+    Parameters:
+      TableName: ${TableName}
+      Key:
+        Pk:
+          S.$: States.Format('TASK#{}', $$.Execution.Input.Id)
+      UpdateExpression: SET TaskStatus = :new_status, ModifiedAt = :modified_at, OutputMessage = :success_message, Outputs = :outputs
+      ExpressionAttributeValues:
+        ':new_status':
+          S: completed
+        ':modified_at':
+          S.$: $$.State.EnteredTime
+        ':success_message':
+          S: Successful processing
+        ':outputs':
+          M.$: $.AvailableFiles
+    ResultPath: $.LastStatus
+    End: True
+
+  SetFailedStatus:
+    Type: Task
+    Resource: arn:aws:states:::dynamodb:updateItem
+    Comment: Update task status to failed.
+    Parameters:
+      TableName: ${TableName}
+      Key:
+        Pk:
+          S.$: States.Format('TASK#{}', $$.Execution.Input.Id)
+      UpdateExpression: SET TaskStatus = :new_status, ModifiedAt = :modified_at, OutputMessage = :error_message
+      ExpressionAttributeValues:
+        ':new_status':
+          S: failed
+        ':modified_at':
+          S.$: $$.State.EnteredTime
+        ':error_message':
+          S.$: $.ErrorInfo.Error
+    ResultPath: $.LastStatus
+    Next: FailExecution
+
+  FailExecution:
+    Type: Fail

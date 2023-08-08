@@ -26,8 +26,8 @@ def build_api_request():
             'requestContext': {
                 'authorizer': {
                     'claims': {
-                        'sub': mocks.USER_ID,
-                        'cognito:username': mocks.USER_ID,
+                        'sub': mocks.USER_SUB,
+                        'cognito:username': mocks.USER_SUB,
                         'given_name': 'Jose',
                         'family_name': 'Hernandez',
                         'email': 'jhernandez@sample.co'
