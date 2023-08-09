@@ -19,7 +19,7 @@ States:
     Resource: arn:aws:states:::dynamodb:updateItem
     Comment: Update task status to in_progress.
     Parameters:
-      TableName: ${TableName}
+      TableName: ${InfraTableName}
       Key:
         Pk:
           S.$: States.Format('TASK#{}', $$.Execution.Input.Id)
@@ -56,7 +56,8 @@ States:
           VolumeSizeInGB: 20
       Environment:
         AWS_DEFAULT_REGION: ${Region}
-        # DATABASE_NAME: ${DatabaseName}
+        DATABASE_NAME: ${ResultsDatabaseName}
+        GPU_ENABLED: ${IsGpuEnabled}
       Tags:
         - Key: Application
           Value: Pavimenta2
@@ -95,7 +96,7 @@ States:
     Resource: arn:aws:states:::dynamodb:updateItem
     Comment: Update task status to completed.
     Parameters:
-      TableName: ${TableName}
+      TableName: ${InfraTableName}
       Key:
         Pk:
           S.$: States.Format('TASK#{}', $$.Execution.Input.Id)
@@ -117,7 +118,7 @@ States:
     Resource: arn:aws:states:::dynamodb:updateItem
     Comment: Update task status to failed.
     Parameters:
-      TableName: ${TableName}
+      TableName: ${InfraTableName}
       Key:
         Pk:
           S.$: States.Format('TASK#{}', $$.Execution.Input.Id)
