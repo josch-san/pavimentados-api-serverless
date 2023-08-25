@@ -38,12 +38,15 @@ Mappings:
   ModeMap:
     dev:
       ModeSuffix: -dev
+      ModeSnakeSuffix: _dev
       ApiStage: dev
     test:
       ModeSuffix: -test
+      ModeSnakeSuffix: _test
       ApiStage: test
     prod:
       ModeSuffix: ''
+      ModeSnakeSuffix: ''
       ApiStage: v1
   ProcessorMap:
     cpu:
@@ -63,9 +66,9 @@ Globals:
         LOG_LEVEL: INFO
         POWERTOOLS_LOGGER_SAMPLE_RATE: 0.1
         POWERTOOLS_LOGGER_LOG_EVENT: true
-    Tags:
-      Product: Pavimentados
-      Environment: !Ref Mode
+
+Conditions:
+  IsGpuEnabled: !Equals [!Ref ProcessorType, 'gpu']
 
 
 Resources:
@@ -219,9 +222,9 @@ Resources:
             Principal:
               Service: sagemaker.amazonaws.com
             Action: sts:AssumeRole
-      # ManagedPolicyArns:
-      #   - !Ref DatalakeReadPolicy
-      #   - !Ref DatalakeWritePolicy
+      ManagedPolicyArns:
+        - !Ref DatalakeReadPolicy
+        - !Ref DatalakeWritePolicy
       Policies:
         - PolicyName: pavimentados-sagemaker-policy
           PolicyDocument:
@@ -260,6 +263,118 @@ Resources:
                 Effect: Allow
                 Action: s3:GetObject
                 Resource: !Sub 'arn:aws:s3:::${ArtifactsBucketName}/pavimenta2/sagemaker/*'
+
+  GlueCrawlerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /service-role/
+      RoleName: !Sub
+        - 'PavimentadosGlueCrawlerRole${suffix}'
+        - suffix: !FindInMap [ModeMap, !Ref Mode, ModeSuffix]
+      Description: Pavimenta2 glue crawler service role.
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: glue.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - !Ref DatalakeReadPolicy
+        - !Ref DatalakeWritePolicy
+      Policies:
+        - PolicyName: pavimentados-glue-policy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - 
+                Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws-glue/*'
+
+  DatalakeReadPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub
+        - 'pavimentados-datalake-read-policy${suffix}'
+        - suffix: !FindInMap [ModeMap, !Ref Mode, ModeSuffix]
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - 
+            Effect: Allow
+            Action: s3:GetObject
+            Resource: !Sub 'arn:aws:s3:::${DatalakeBucketName}/pavimenta2/*'
+          - 
+            Effect: Allow
+            Action:
+              - glue:GetDatabase
+              - glue:GetDatabases
+              - glue:GetTable
+              - glue:GetTables
+              - glue:GetPartition
+              - glue:GetPartitions
+              - glue:BatchGetPartition
+            Resource:
+              - !Sub 'arn:aws:glue:${AWS::Region}:${AWS::AccountId}:catalog'
+              - !Sub 'arn:aws:glue:${AWS::Region}:${AWS::AccountId}:database/${PavimentadosDatabase}'
+              - !Sub 'arn:aws:glue:${AWS::Region}:${AWS::AccountId}:table/${PavimentadosDatabase}/*'
+          - 
+            Effect: Allow
+            Action:
+              - s3:ListBucket
+              - s3:GetObject
+              - s3:PutObject
+              - s3:GetBucketLocation
+              - s3:ListBucketMultipartUploads
+              - s3:ListMultipartUploadParts
+              - s3:AbortMultipartUpload
+            Resource:
+              - !Sub 'arn:aws:s3:::${DatalakeBucketName}'
+              - !Sub 'arn:aws:s3:::${DatalakeBucketName}/athena-query-results/pavimenta2/*'
+          - 
+            Effect: Allow
+            Action:
+              - athena:StartQueryExecution
+              - athena:StopQueryExecution
+              - athena:GetQueryExecution
+              - athena:GetQueryResults
+              - athena:GetQueryResultsStream
+              - athena:BatchGetQueryExecution
+            Resource: !Sub 'arn:aws:athena:${AWS::Region}:${AWS::AccountId}:workgroup/${PavimentadosWorkGroup}'
+
+  DatalakeWritePolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub
+        - 'pavimentados-datalake-write-policy${suffix}'
+        - suffix: !FindInMap [ModeMap, !Ref Mode, ModeSuffix]
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+              - 
+                Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:DeleteObject
+                Resource: !Sub 'arn:aws:s3:::${DatalakeBucketName}/pavimenta2/*'
+              - 
+                Effect: Allow
+                Action:
+                  - glue:UpdateTable
+                  - glue:CreatePartition
+                  - glue:UpdatePartition
+                  - glue:DeletePartition
+                  - glue:BatchCreatePartition
+                  - glue:BatchDeletePartition
+                Resource:
+                  - !Sub 'arn:aws:glue:${AWS::Region}:${AWS::AccountId}:catalog'
+                  - !Sub 'arn:aws:glue:${AWS::Region}:${AWS::AccountId}:database/${PavimentadosDatabase}'
+                  - !Sub 'arn:aws:glue:${AWS::Region}:${AWS::AccountId}:table/${PavimentadosDatabase}/*'
+
 
   RoadSectionInferenceRepository:
     Type: AWS::ECR::Repository
@@ -381,17 +496,402 @@ Resources:
             Location: src/stepfunctions/RoadSectionInferenceWorkflow.yaml
       DefinitionSubstitutions:
         Mode: !Ref Mode
-        TableName: !Ref InfraTableName
+        InfraTableName: !Ref InfraTableName
         InferenceInstanceType: !FindInMap [ProcessorMap, !Ref ProcessorType, InstanceType]
         InferenceRepositoryUri: !Sub
           - '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${RoadSectionInferenceRepository}:${dockerImageTag}'
           - dockerImageTag: !FindInMap [ProcessorMap, !Ref ProcessorType, ImageTag]
-        # UpdateTaskFunctionArn: !GetAtt UpdateTaskFunction.Arn
         BuildPayloadFunctionArn: !GetAtt BuildPayloadFunction.Arn
         DiscoverOutputsFunctionArn: !GetAtt DiscoverOutputsFunction.Arn
         InferenceRoleArn: !GetAtt SageMakerRole.Arn
-        # DatabaseName: !Ref PavimentadosDatabase
+        ResultsDatabaseName: !Ref PavimentadosDatabase
+        IsGpuEnabled: !If [IsGpuEnabled, 'true', 'false']
         Region: !Ref AWS::Region
+
+  # Datalake Resources
+
+  PavimentadosWorkGroup:
+    Type: AWS::Athena::WorkGroup
+    Properties:
+      Name: !Sub
+        - 'pavimentados-reporting${suffix}'
+        - suffix: !FindInMap [ModeMap, !Ref Mode, ModeSuffix]
+      Description: Used to query pavimenta2 data catalogs
+      State: ENABLED
+      RecursiveDeleteOption: true
+      WorkGroupConfiguration:
+        PublishCloudWatchMetricsEnabled: false
+        EnforceWorkGroupConfiguration: true
+        ResultConfiguration:
+          OutputLocation: !Sub 's3://${DatalakeBucketName}/athena-query-results/pavimenta2/'
+      WorkGroupConfigurationUpdates:
+        PublishCloudWatchMetricsEnabled: false
+        EnforceWorkGroupConfiguration: true
+
+  PavimentadosDatabase:
+    Type: AWS::Glue::Database
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseInput:
+        Name: !Sub
+          - 'pavimentados${suffix}'
+          - suffix: !FindInMap [ModeMap, !Ref Mode, ModeSnakeSuffix]
+        Description: Pavimenta2 database
+        LocationUri: !Sub 's3://${DatalakeBucketName}/pavimenta2/'
+
+  SectionsTable:
+    Type: AWS::Glue::Table
+    DependsOn: PavimentadosDatabase
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseName: !Ref PavimentadosDatabase
+      TableInput:
+        Description: pending...
+        Name: sections
+        TableType: EXTERNAL_TABLE
+        PartitionKeys:
+          - 
+            Name: user
+            Type: string
+          - 
+            Name: geography
+            Type: string
+          - 
+            Name: task
+            Type: string
+        Parameters: {
+          "classification": "parquet",
+          "compressionType": "snappy",
+          "typeOfData": "file"
+        }
+        StorageDescriptor:
+          Location: !Sub 's3://${DatalakeBucketName}/pavimenta2/sections/'
+          InputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat
+          OutputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat
+          StoredAsSubDirectories: false
+          Columns:
+            - 
+              Name: tramo
+              Type: double
+            - 
+              Name: grieta_lineal_longitudinal
+              Type: double
+            - 
+              Name: intervalo_lineal_longitudinal
+              Type: double
+            - 
+              Name: grieta_lineal_transversal
+              Type: double
+            - 
+              Name: intervalo_lineal_transversal
+              Type: double
+            - 
+              Name: piel_de_cocodrilo
+              Type: double
+            - 
+              Name: protuberancia_bache
+              Type: double
+            - 
+              Name: otras_fallas
+              Type: double
+            - 
+              Name: latitud
+              Type: double
+            - 
+              Name: longitud
+              Type: double
+            - 
+              Name: latitud_final
+              Type: double
+            - 
+              Name: longitud_final
+              Type: double
+            - 
+              Name: distancia_tramo
+              Type: double
+            - 
+              Name: trecho
+              Type: string
+          SerdeInfo:
+            SerializationLibrary: org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe
+            Parameters: {
+              "serialization.format": "1"
+            }
+
+  SignalsDetectedTable:
+    Type: AWS::Glue::Table
+    DependsOn: PavimentadosDatabase
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseName: !Ref PavimentadosDatabase
+      TableInput:
+        Description: pending...
+        Name: signals_detected
+        TableType: EXTERNAL_TABLE
+        PartitionKeys:
+          - 
+            Name: user
+            Type: string
+          - 
+            Name: geography
+            Type: string
+          - 
+            Name: task
+            Type: string
+        Parameters: {
+          "classification": "parquet",
+          "compressionType": "snappy",
+          "typeOfData": "file"
+        }
+        StorageDescriptor:
+          Location: !Sub 's3://${DatalakeBucketName}/pavimenta2/signals_detected/'
+          InputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat
+          OutputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat
+          StoredAsSubDirectories: false
+          Columns:
+            - 
+              Name: fotogram
+              Type: bigint
+            - 
+              Name: position_boxes
+              Type: bigint
+            - 
+              Name: score
+              Type: double
+            - 
+              Name: signal_state
+              Type: bigint
+            - 
+              Name: signal_classes_siames
+              Type: string
+            - 
+              Name: signal_classes_base
+              Type: string
+            - 
+              Name: classes_signal
+              Type: bigint
+            - 
+              Name: latitude
+              Type: double
+            - 
+              Name: longitude
+              Type: double
+            - 
+              Name: signal_classes_siames_names
+              Type: string
+            - 
+              Name: classes_signal_names
+              Type: string
+            - 
+              Name: final_classes
+              Type: string
+            - 
+              Name: id
+              Type: int
+          SerdeInfo:
+            SerializationLibrary: org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe
+            Parameters: {
+              "serialization.format": "1"
+            }
+
+  FailuresDetectedTable:
+    Type: AWS::Glue::Table
+    DependsOn: PavimentadosDatabase
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseName: !Ref PavimentadosDatabase
+      TableInput:
+        Description: pending...
+        Name: failures_detected
+        TableType: EXTERNAL_TABLE
+        PartitionKeys:
+          - 
+            Name: user
+            Type: string
+          - 
+            Name: geography
+            Type: string
+          - 
+            Name: task
+            Type: string
+        Parameters: {
+          "classification": "parquet",
+          "compressionType": "snappy",
+          "typeOfData": "file"
+        }
+        StorageDescriptor:
+          Location: !Sub 's3://${DatalakeBucketName}/pavimenta2/failures_detected/'
+          InputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat
+          OutputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat
+          StoredAsSubDirectories: false
+          Columns:
+            - 
+              Name: id_clase
+              Type: double
+            - 
+              Name: clases
+              Type: string
+            - 
+              Name: id_tramo_falla
+              Type: bigint
+            - 
+              Name: distances
+              Type: double
+            - 
+              Name: coordenada_inicio
+              Type: string
+            - 
+              Name: latitude_inicio
+              Type: double
+            - 
+              Name: longitud_inicio
+              Type: double
+            - 
+              Name: coordenada_final
+              Type: string
+            - 
+              Name: latitude_final
+              Type: double
+            - 
+              Name: longitud_final
+              Type: double
+            - 
+              Name: base
+              Type: double
+            - 
+              Name: area
+              Type: double
+            - 
+              Name: boxes
+              Type: bigint
+          SerdeInfo:
+            SerializationLibrary: org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe
+            Parameters: {
+              "serialization.format": "1"
+            }
+
+  DetectionsOverPhotogramTable:
+    Type: AWS::Glue::Table
+    DependsOn: PavimentadosDatabase
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseName: !Ref PavimentadosDatabase
+      TableInput:
+        Description: pending...
+        Name: detections_over_photogram
+        TableType: EXTERNAL_TABLE
+        PartitionKeys:
+          - 
+            Name: user
+            Type: string
+          - 
+            Name: geography
+            Type: string
+          - 
+            Name: task
+            Type: string
+        Parameters: {
+          "classification": "parquet",
+          "compressionType": "snappy",
+          "typeOfData": "file"
+        }
+        StorageDescriptor:
+          Location: !Sub 's3://${DatalakeBucketName}/pavimenta2/detections_over_photogram/'
+          InputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat
+          OutputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat
+          StoredAsSubDirectories: false
+          Columns:
+            - 
+              Name: latitude
+              Type: double
+            - 
+              Name: longitud
+              Type: double
+            - 
+              Name: distances
+              Type: double
+            - 
+              Name: ind
+              Type: bigint
+            - 
+              Name: fotograma
+              Type: bigint
+            - 
+              Name: tramo
+              Type: bigint
+            - 
+              Name: clases
+              Type: string
+            - 
+              Name: ind2
+              Type: bigint
+            - 
+              Name: scores
+              Type: double
+            - 
+              Name: boxes
+              Type: string
+            - 
+              Name: id_clase
+              Type: double
+            - 
+              Name: area
+              Type: double
+            - 
+              Name: centro
+              Type: string
+            - 
+              Name: altura
+              Type: double
+            - 
+              Name: base
+              Type: double
+            - 
+              Name: area_total
+              Type: bigint
+            - 
+              Name: perc_area
+              Type: double
+            - 
+              Name: id_tramo_falla
+              Type: int
+          SerdeInfo:
+            SerializationLibrary: org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe
+            Parameters: {
+              "serialization.format": "1"
+            }
+
+  SyncPartitionsCrawler:
+    Type: AWS::Glue::Crawler
+    Properties:
+      Role: !GetAtt GlueCrawlerRole.Arn
+      Name: !Sub
+        - 'pavimentados-crawler${suffix}'
+        - suffix: !FindInMap [ModeMap, !Ref Mode, ModeSuffix]
+      Description: Update partitions in pavimenta2 tables
+      DatabaseName: !Ref PavimentadosDatabase
+      Targets:
+        CatalogTargets:
+          - DatabaseName: !Ref PavimentadosDatabase
+            Tables:
+              - !Ref SectionsTable
+              - !Ref SignalsDetectedTable
+              - !Ref FailuresDetectedTable
+              - !Ref DetectionsOverPhotogramTable
+      SchemaChangePolicy:
+        UpdateBehavior: LOG
+        DeleteBehavior: LOG
+      Configuration: '{
+        "Version": 1.0,
+        "CrawlerOutput": {
+          "Partitions": {
+            "AddOrUpdateBehavior": "InheritFromTable"
+          }
+        },
+        "Grouping": {
+          "TableGroupingPolicy": "CombineCompatibleSchemas"
+        }
+      }'
 
 Outputs:
   WebClientId:

@@ -1,18 +1,10 @@
-import os, sys
+import os
 import logging
-import subprocess
 from pathlib import Path
 
 logger = logging.getLogger()
 LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO').upper()
 logger.setLevel(getattr(logging, LOG_LEVEL))
-
-CODE_BASE_PATH = Path(os.environ.get('CODE_BASE_PATH', '/opt/ml/processing/code'))
-LOCAL_RUNNING = os.environ.get('LOCAL_RUNNING', 'false').lower() == 'true'
-if not LOCAL_RUNNING:
-    requirements_file_path = (CODE_BASE_PATH / 'requirements.txt').as_posix()
-    logger.info(f'Installing dependencies from {requirements_file_path}.')
-    subprocess.check_call([sys.executable, '-m', 'pip', 'install', '-r', requirements_file_path])
 
 
 INPUTS_BASE_PATH = Path(os.environ.get('INPUTS_BASE_PATH', '/opt/ml/processing/inputs'))
@@ -69,16 +61,16 @@ def processing_routine(payload: dict, artifacts_path: Path):
 
     logger.info('Completed data inference.')
 
-    # upload_to_datalake(table_summary_sections, payload, 'sections', DATALAKE_PARTITIONS_KEYS, DATABASE_NAME)
+    upload_to_datalake(table_summary_sections, payload, 'sections', DATALAKE_PARTITIONS_KEYS, DATABASE_NAME)
     table_summary_sections.to_csv((OUTPUTS_BASE_PATH / 'sections.csv').as_posix(), index=False)
 
-    # upload_to_datalake(data_resulting, payload, 'detections_over_photogram', DATALAKE_PARTITIONS_KEYS, DATABASE_NAME)
+    upload_to_datalake(data_resulting, payload, 'detections_over_photogram', DATALAKE_PARTITIONS_KEYS, DATABASE_NAME)
     data_resulting.to_csv((OUTPUTS_BASE_PATH / 'detections_over_photogram.csv').as_posix(), index=False)
 
-    # upload_to_datalake(data_resulting_fails, payload, 'failures_detected', DATALAKE_PARTITIONS_KEYS, DATABASE_NAME)
+    upload_to_datalake(data_resulting_fails, payload, 'failures_detected', DATALAKE_PARTITIONS_KEYS, DATABASE_NAME)
     data_resulting_fails.to_csv((OUTPUTS_BASE_PATH / 'failures_detected.csv').as_posix(), index=False)
 
-    # upload_to_datalake(signals_summary, payload, 'signals_detected', DATALAKE_PARTITIONS_KEYS, DATABASE_NAME)
+    upload_to_datalake(signals_summary, payload, 'signals_detected', DATALAKE_PARTITIONS_KEYS, DATABASE_NAME)
     signals_summary.to_csv((OUTPUTS_BASE_PATH / 'signals_detected.csv').as_posix(), index=False)
 
     logger.info('Completed results export.')
