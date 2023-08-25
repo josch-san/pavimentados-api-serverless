@@ -209,6 +209,119 @@ paths:
   #       '204':
   #         description: Success response
 
+  /admin/datasets:
+    get:
+      security:
+        - OAuth2UserAuthorizer: []
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        passthroughBehavior: when_no_match
+        credentials:
+          Fn::GetAtt: ApiGatewayRole.Arn
+        uri:
+          Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${DatasetMicroserviceFunction.Arn}/invocations
+      parameters:
+        - $ref: '#/components/parameters/offset'
+        - $ref: '#/components/parameters/limit'
+      responses:
+        '200':
+          description: Success response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedDatasets'
+
+    post:
+      security:
+        - OAuth2UserAuthorizer: []
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        passthroughBehavior: when_no_match
+        credentials:
+          Fn::GetAtt: ApiGatewayRole.Arn
+        uri:
+          Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${DatasetMicroserviceFunction.Arn}/invocations
+      x-amazon-apigateway-request-validator: all
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DatasetCreatePayload'
+      responses:
+        '201':
+          description: Success response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dataset'
+
+  /admin/datasets/{datasetId}:
+    get:
+      security:
+        - OAuth2UserAuthorizer: []
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        passthroughBehavior: when_no_match
+        credentials:
+          Fn::GetAtt: ApiGatewayRole.Arn
+        uri:
+          Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${DatasetMicroserviceFunction.Arn}/invocations
+      x-amazon-apigateway-request-validator: params-only
+      parameters:
+        - $ref: '#/components/parameters/datasetId'
+      responses:
+        '200':
+          description: Success response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dataset'
+
+    delete:
+      security:
+        - OAuth2UserAuthorizer: []
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        passthroughBehavior: when_no_match
+        credentials:
+          Fn::GetAtt: ApiGatewayRole.Arn
+        uri:
+          Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${DatasetMicroserviceFunction.Arn}/invocations
+      x-amazon-apigateway-request-validator: params-only
+      parameters:
+        - $ref: '#/components/parameters/datasetId'
+      responses:
+        '204':
+          description: Success response
+
+  /public/datasets/{datasetSlug}/signedUrl:
+    get:
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        passthroughBehavior: when_no_match
+        credentials:
+          Fn::GetAtt: ApiGatewayRole.Arn
+        uri:
+          Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${DatasetMicroserviceFunction.Arn}/invocations
+      x-amazon-apigateway-request-validator: params-only
+      parameters:
+        - $ref: '#/components/parameters/datasetSlug'
+      responses:
+        '200':
+          description: Signed S3 file url.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:
+                    type: string
+
 components:
   parameters:
     # offset:
@@ -234,6 +347,20 @@ components:
     taskId:
       in: path
       name: taskId
+      required: true
+      schema:
+        type: string
+
+    datasetId:
+      in: path
+      name: datasetId
+      required: true
+      schema:
+        type: string
+
+    datasetSlug:
+      in: path
+      name: datasetSlug
       required: true
       schema:
         type: string
@@ -348,6 +475,79 @@ components:
       properties:
         FieldName:
           type: string
+
+    DatasetCreatePayload:
+      type: object
+      properties:
+        Name:
+          type: string
+        Slug:
+          type: string
+        Config:
+          type: object
+        AccessLevel:
+          type: string
+        RepositoryType:
+          type: string
+        AppId:
+          type: integer
+        UserId:
+          type: integer
+        Description:
+          type: string
+        Owner:
+          type: string
+      required:
+        - Name
+        - Slug
+        - RepositoryType
+        - AppId
+
+    Dataset:
+      type: object
+      properties:
+        Id:
+          type: string
+        Name:
+          type: string
+        Slug:
+          type: string
+        Config:
+          type: object
+        AccessLevel:
+          type: string
+        RepositoryType:
+          type: string
+        AppId:
+          type: integer
+        IsDeleted:
+          type: boolean
+        Key:
+          type: string
+        UserId:
+          type: integer
+        CreatedAt:
+          type: string
+          format: date-time
+        ModifiedAt:
+          type: string
+          format: date-time
+        Description:
+          type: string
+        Owner:
+          type: string
+
+    PaginatedDatasets:
+      allOf:
+        - $ref: '#/components/schemas/Pagination'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/Dataset'
+          required:
+            - items
 
   securitySchemes:
     user-pool-authorizer:
