@@ -457,6 +457,25 @@ Resources:
           ATTACHMENTS_BUCKET_NAME: !Ref AttachmentsBucketName
           TASK_QUEUE_URL: !GetAtt InferenceQueue.QueueUrl
 
+  DatasetMicroserviceFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub
+        - 'pavimentados-dataset-microservice${suffix}'
+        - suffix: !FindInMap [ModeMap, !Ref Mode, ModeSuffix]
+      Role: !GetAtt LambdaRole.Arn
+      Description: Dataset microservice API handler function
+      CodeUri: src/lambda/dataset-microservice
+      Handler: app.lambda_handler
+      Layers:
+        - !Sub 'arn:aws:lambda:${AWS::Region}:017000801446:layer:AWSLambdaPowertoolsPythonV2:32'
+      Environment:
+        Variables:
+          POWERTOOLS_SERVICE_NAME: dataset-microservice
+          TABLE_NAME: !Ref InfraTableName
+          API_STAGE: !FindInMap [ModeMap, !Ref Mode, ApiStage]
+          ATTACHMENTS_BUCKET_NAME: !Ref AttachmentsBucketName
+
   BuildPayloadFunction:
     Type: AWS::Serverless::Function
     Properties:
