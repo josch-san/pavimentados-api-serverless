@@ -2,7 +2,7 @@ from boto3.dynamodb.conditions import Attr
 from pydantic import parse_obj_as
 
 from models.task import Task
-from aws_resources import LambdaDynamoDB
+from infra_commons.aws_resources import LambdaDynamoDB
 
 
 class TaskRepository:

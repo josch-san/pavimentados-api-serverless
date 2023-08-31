@@ -1,8 +1,8 @@
 import boto3
 from botocore.config import Config
-from aws_resources import LambdaSQS
+from infra_commons.aws_resources import LambdaSQS
 
-from models.s3_object import InputS3Content
+from infra_commons.models.s3_object import InputS3Content
 
 s3_client = boto3.client('s3', config=Config(signature_version='s3v4'))
 

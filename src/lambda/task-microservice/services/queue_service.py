@@ -1,6 +1,6 @@
 import json
 
-from aws_resources import LambdaSQS
+from infra_commons.aws_resources import LambdaSQS
 
 
 class QueueService:

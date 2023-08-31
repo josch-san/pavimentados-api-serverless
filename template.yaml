@@ -437,6 +437,21 @@ Resources:
         - 'pavimentados-inference-queue${suffix}'
         - suffix: !FindInMap [ModeMap, !Ref Mode, ModeSuffix]
 
+  CommonsDependenciesLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      CompatibleRuntimes:
+        - python3.9
+      ContentUri: src/layers/endpoints-dependencies
+      Description: Commons pavimentados resources
+      LayerName: !Sub
+        - 'pavimentados-commons${suffix}'
+        - suffix: !FindInMap [ModeMap, !Ref Mode, ModeSuffix]
+      LicenseInfo: ISC
+      RetentionPolicy: Delete
+    Metadata:
+      BuildMethod: python3.9
+
   TaskMicroserviceFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -449,6 +464,7 @@ Resources:
       Handler: app.lambda_handler
       Layers:
         - !Sub 'arn:aws:lambda:${AWS::Region}:017000801446:layer:AWSLambdaPowertoolsPythonV2:32'
+        - !Ref CommonsDependenciesLayer
       Environment:
         Variables:
           POWERTOOLS_SERVICE_NAME: task-microservice
@@ -469,6 +485,7 @@ Resources:
       Handler: app.lambda_handler
       Layers:
         - !Sub 'arn:aws:lambda:${AWS::Region}:017000801446:layer:AWSLambdaPowertoolsPythonV2:32'
+        - !Ref CommonsDependenciesLayer
       Environment:
         Variables:
           POWERTOOLS_SERVICE_NAME: dataset-microservice

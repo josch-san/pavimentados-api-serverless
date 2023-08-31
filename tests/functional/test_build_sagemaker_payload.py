@@ -4,6 +4,7 @@ import sys
 os.environ['AWS_DEFAULT_REGION'] = 'us-east-1'
 sys.path.append('src/lambda/build-payload')
 sys.path.append('src/lambda/task-microservice')
+sys.path.append('src/layers/endpoints-dependencies')
 
 from models.task import Task
 from inference_builder import InferenceBuilder

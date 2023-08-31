@@ -7,9 +7,9 @@ from aws_lambda_powertools.logging import correlation_paths
 from aws_lambda_powertools.utilities.typing import LambdaContext
 from aws_lambda_powertools.event_handler import APIGatewayRestResolver
 
-from aws_resources import LambdaDynamoDB, LambdaS3
+from infra_commons.aws_resources import LambdaDynamoDB, LambdaS3
+from infra_commons.serializers import custom_serializer
 from controllers import dataset_controller
-from serializers import custom_serializer
 
 tracer = Tracer()
 logger = Logger()

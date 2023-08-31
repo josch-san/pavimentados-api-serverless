@@ -5,8 +5,8 @@ from copy import deepcopy
 from pydantic import BaseModel, Field
 
 
-from .base_task import BaseTask, TaskStatusEnum
-from .s3_object import InputS3Content, InputS3ItemContent, InputS3ArrayContent, OutputS3ItemContent
+from infra_commons.models.base_task import BaseTask, TaskStatusEnum
+from infra_commons.models.s3_object import InputS3Content, InputS3ItemContent, InputS3ArrayContent, OutputS3ItemContent
 
 
 class GpsFile(InputS3ItemContent):

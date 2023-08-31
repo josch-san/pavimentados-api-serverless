@@ -489,10 +489,10 @@ components:
           type: string
         RepositoryType:
           type: string
-        AppId:
-          type: integer
-        UserId:
-          type: integer
+        # AppId:
+        #   type: integer
+        UserSub:
+          type: string
         Description:
           type: string
         Owner:
@@ -518,14 +518,14 @@ components:
           type: string
         RepositoryType:
           type: string
-        AppId:
-          type: integer
+        # AppId:
+        #   type: integer
         IsDeleted:
           type: boolean
-        Key:
+        # Key:
+        #   type: string
+        UserSub:
           type: string
-        UserId:
-          type: integer
         CreatedAt:
           type: string
           format: date-time
