@@ -4,12 +4,13 @@ from unittest.mock import Mock
 import pytest
 from aws_lambda_powertools.event_handler.exceptions import BadRequestError
 
+sys.path.append('src/layers/endpoints-dependencies')
 sys.path.append('src/lambda/task-microservice')
 
 from services.task_service import TaskService
 from models.task import Task, TaskStatusEnum
 
-from tests import mocks
+from tests.mocks import task_microservice as mocks
 
 
 @pytest.fixture

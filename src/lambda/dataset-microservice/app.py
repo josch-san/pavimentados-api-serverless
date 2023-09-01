@@ -9,7 +9,7 @@ from aws_lambda_powertools.event_handler import APIGatewayRestResolver
 
 from infra_commons.aws_resources import LambdaDynamoDB, LambdaS3
 from infra_commons.serializers import custom_serializer
-from controllers import dataset_controller
+from controllers import dataset_controller, admin_dataset_controller
 
 tracer = Tracer()
 logger = Logger()
@@ -25,6 +25,7 @@ _S3_RESOURCE = {
 }
 
 app = APIGatewayRestResolver(strip_prefixes=[STAGE_PREFIX], serializer=custom_serializer)
+app.include_router(admin_dataset_controller.router, prefix='/admin/datasets')
 app.include_router(dataset_controller.router, prefix='/public/datasets')
 
 

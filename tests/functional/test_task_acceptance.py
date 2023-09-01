@@ -3,23 +3,35 @@ import sys
 import json
 from http import HTTPStatus
 from unittest.mock import patch
+from dataclasses import dataclass
 
-import boto3
 import pytest
-from moto import mock_dynamodb, mock_sqs, mock_s3
 
 os.environ['AWS_DEFAULT_REGION'] = 'us-east-1'
+sys.path.append('src/layers/endpoints-dependencies')
 sys.path.append('src/lambda/task-microservice')
 
 from models.task import TaskStatusEnum, Task
 from services.queue_service import QueueService
 import app
 
-from tests import mocks
+from tests.mocks import task_microservice as mocks
 
 OUTPUT_PATH_TEMPLATE = 'pavimenta2/user:6b456b08-fa1d-4e24-9fbd-be990e023299/road_sections_inference/{}/outputs'
 def parse_body(response):
     return json.loads(response['body'])
+
+
+@pytest.fixture
+def lambda_context():
+    @dataclass
+    class LambdaContext:
+        function_name: str = 'task-microservice-mock'
+        memory_limit_in_mb: int = 128
+        invoked_function_arn: str = 'arn:aws:lambda:us-east-1:123456789012:function:task-microservice-mock'
+        aws_request_id: str = 'da658bd3-2d6f-4e7b-8ec2-937234644fdc'
+
+    return LambdaContext()
 
 
 @pytest.fixture
@@ -29,44 +41,6 @@ def api_client(lambda_context, build_api_request):
         return app.lambda_handler(event, lambda_context)
 
     return _resolve_request
-
-
-@pytest.fixture(scope='session')
-def dynamodb():
-    with mock_dynamodb():
-        dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
-        table = dynamodb.create_table(
-            TableName=mocks.TABLE_NAME,
-            KeySchema=[{'AttributeName': 'Pk', 'KeyType': 'HASH'}],
-            AttributeDefinitions=[{'AttributeName': 'Pk', 'AttributeType': 'S'}],
-            BillingMode='PAY_PER_REQUEST'
-        )
-
-        with table.batch_writer() as batch:
-            for record in mocks.TASK_LIST:
-                batch.put_item(Item=record)
-
-        yield dynamodb
-
-@pytest.fixture(scope='session')
-def sqs():
-    with mock_sqs():
-        sqs = boto3.resource('sqs', region_name='us-east-1')
-        sqs.create_queue(
-            QueueName=mocks.QUEUE_URL.split('/')[-1],
-        )
-
-    yield sqs
-
-@pytest.fixture(scope='session')
-def s3():
-    with mock_s3():
-        s3 = boto3.client('s3', region_name='us-east-1')
-        s3.create_bucket(
-            Bucket=mocks.BUCKET_NAME
-        )
-
-    yield s3
 
 
 @pytest.fixture(autouse=True)

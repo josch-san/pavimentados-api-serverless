@@ -1,14 +1,10 @@
-import boto3
-from botocore.config import Config
-from infra_commons.aws_resources import LambdaSQS
 
+from infra_commons.aws_resources import LambdaS3
 from infra_commons.models.s3_object import InputS3Content
-
-s3_client = boto3.client('s3', config=Config(signature_version='s3v4'))
 
 
 class StorageService:
-    def __init__(self, resource: LambdaSQS):
+    def __init__(self, resource: LambdaS3):
         self.resource = resource
 
     def sign_upload_url(self, bucket, key):

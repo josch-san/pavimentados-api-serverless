@@ -9,7 +9,7 @@ sys.path.append('src/layers/endpoints-dependencies')
 from models.task import Task
 from inference_builder import InferenceBuilder
 
-from tests import mocks
+from tests.mocks import task_microservice as mocks
 
 
 class TestBuildSagemakerPayload:

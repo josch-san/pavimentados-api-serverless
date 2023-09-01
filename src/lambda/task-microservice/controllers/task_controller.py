@@ -3,9 +3,9 @@ from aws_lambda_powertools import Tracer
 from aws_lambda_powertools.event_handler.router import APIGatewayRouter
 from aws_lambda_powertools.utilities.data_classes import APIGatewayProxyEvent
 
+from infra_commons.services.storage_service import StorageService
 from services.task_service import TaskService
 from services.queue_service import QueueService
-from services.storage_service import StorageService
 
 tracer = Tracer()
 router = APIGatewayRouter()

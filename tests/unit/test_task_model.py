@@ -1,8 +1,10 @@
 import sys
+
+sys.path.append('src/layers/endpoints-dependencies')
 sys.path.append('src/lambda/task-microservice')
 
 from models.task import Task
-from tests import mocks
+from tests.mocks import task_microservice as mocks
 
 
 class TestTaskModelFeatures:
