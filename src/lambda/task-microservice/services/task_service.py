@@ -7,11 +7,11 @@ from aws_lambda_powertools.event_handler.exceptions import (
     UnauthorizedError
 )
 
-from models.task import Task
 from infra_commons.models.s3_object import InputS3Content
 from infra_commons.models.base_task import TaskStatusEnum
-from services.repositories.task_repository import TaskRepository
 from infra_commons.aws_resources import LambdaDynamoDB
+from services.repositories.task_repository import TaskRepository
+from models.task import Task
 
 logger = Logger(child=True)
 

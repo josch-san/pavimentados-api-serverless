@@ -212,7 +212,7 @@ paths:
   /admin/datasets:
     get:
       security:
-        - OAuth2UserAuthorizer: []
+        - user-pool-authorizer: []
       x-amazon-apigateway-integration:
         type: aws_proxy
         httpMethod: POST
@@ -234,7 +234,7 @@ paths:
 
     post:
       security:
-        - OAuth2UserAuthorizer: []
+        - user-pool-authorizer: []
       x-amazon-apigateway-integration:
         type: aws_proxy
         httpMethod: POST
@@ -260,7 +260,7 @@ paths:
   /admin/datasets/{datasetId}:
     get:
       security:
-        - OAuth2UserAuthorizer: []
+        - user-pool-authorizer: []
       x-amazon-apigateway-integration:
         type: aws_proxy
         httpMethod: POST
@@ -282,7 +282,7 @@ paths:
 
     delete:
       security:
-        - OAuth2UserAuthorizer: []
+        - user-pool-authorizer: []
       x-amazon-apigateway-integration:
         type: aws_proxy
         httpMethod: POST
@@ -497,11 +497,13 @@ components:
           type: string
         Owner:
           type: string
+        Metadata:
+          type: object
       required:
         - Name
         - Slug
         - RepositoryType
-        - AppId
+        # - AppId
 
     Dataset:
       type: object

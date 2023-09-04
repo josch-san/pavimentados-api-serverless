@@ -60,8 +60,8 @@ class TestDatasetEndpoints:
             'AccessLevel': 'public',
             'RepositoryType': 'amazon-s3',
             'Config': {
-                'bucket': 'ineiadb-infradigital-datalake-dev',
-                'key': 'pavimenta2/geography/geography_road_co.json'
+                'Bucket': 'ineiadb-infradigital-datalake-dev',
+                'Key': 'pavimenta2/geography/geography_road_co.json'
             }
         }
 

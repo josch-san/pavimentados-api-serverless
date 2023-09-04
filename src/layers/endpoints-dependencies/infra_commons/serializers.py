@@ -7,7 +7,7 @@ from infra_commons.models.base_task import BaseTask
 
 class CustomEncoder(JSONEncoder):
     def default(self, obj):
-        if isinstance(obj, BaseTask):
+        if hasattr(obj, 'raw_dict'):
             return obj.raw_dict()
         if isinstance(obj, BaseModel):
             return obj.dict(by_alias=True)

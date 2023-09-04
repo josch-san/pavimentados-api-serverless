@@ -5,13 +5,14 @@ from uuid import UUID, uuid4
 from typing import Optional
 
 from pydantic import BaseModel, Field, constr
+from infra_commons.models.s3_object import S3ObjectReference
 
 DATASET_SLUG_PATTERN = r'^[a-z]{2}[a-z0-9\_]*(?:#[a-z]{2}[a-z0-9\_]*)*$'
 
 
 class AccessLevelEnum(str, Enum):
     PUBLIC = 'public'
-    PRIVATE_INFRA = 'private-infra'
+    # PRIVATE_INFRA = 'private-infra'
     PRIVATE_APP = 'private-app'
 
 
@@ -22,18 +23,19 @@ class RepositoryTypeEnum(str, Enum):
 
 
 class Dataset(BaseModel):
-    Id: UUID = Field(default=uuid4)
-    Name: str
+    Id: UUID = Field(default_factory=uuid4)
     Slug: constr(regex=DATASET_SLUG_PATTERN)
-    Config: Optional[dict]
-    AccessLevel: AccessLevelEnum = AccessLevelEnum.PUBLIC
-    RepositoryType: RepositoryTypeEnum
-    IsDeleted: bool = False
+    Name: str
+    Description: Optional[str]
     UserSub: Optional[UUID]
+    Owner: Optional[str]
+    AccessLevel: AccessLevelEnum = AccessLevelEnum.PRIVATE_APP
+    RepositoryType: RepositoryTypeEnum = RepositoryTypeEnum.AMAZON_S3
     CreatedAt: datetime = Field(default_factory=datetime.utcnow)
     ModifiedAt: datetime = Field(default_factory=datetime.utcnow)
-    Description: Optional[str]
-    Owner: Optional[str]
+    DatasetConfig: S3ObjectReference = Field(alias='Config')
+    Metadata: Optional[dict]
+    IsDeleted: bool = False
 
     class Config:
         extra = 'ignore'
@@ -49,9 +51,9 @@ class Dataset(BaseModel):
         return json.loads(self.json(by_alias=True))
 
     @staticmethod
-    def build_dynamodb_key(task_id: str) -> dict:
+    def build_dynamodb_key(dataset_id: str) -> dict:
         return {
-            'Pk': 'DATASET#{}'.format(task_id),
+            'Pk': 'DATASET#{}'.format(dataset_id),
             # 'Sk': 'metadata'
         }
 
