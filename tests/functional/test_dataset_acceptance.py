@@ -41,9 +41,12 @@ def api_client(lambda_context, build_api_request):
 
 
 @pytest.fixture(autouse=True)
-def set_aws_resources(monkeypatch, dynamodb, sqs, s3):
+def set_aws_resources(monkeypatch, dynamodb, s3):
+    dynamodb_resource, dynamodb_client = dynamodb
+
     monkeypatch.setattr(app, '_DYNAMODB_RESOURCE', {
-        'resource': dynamodb,
+        'client': dynamodb_client,
+        'resource': dynamodb_resource,
         'table_name': mocks.TABLE_NAME
     })
     monkeypatch.setattr(app, '_S3_RESOURCE', {

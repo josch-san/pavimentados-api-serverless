@@ -34,8 +34,10 @@ def build_api_request():
 @pytest.fixture(scope='session')
 def dynamodb():
     with mock_dynamodb():
-        dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
-        table = dynamodb.create_table(
+        dynamodb_client = boto3.client('dynamodb', region_name='us-east-1')
+        dynamodb_resource = boto3.resource('dynamodb', region_name='us-east-1')
+
+        table = dynamodb_resource.create_table(
             TableName=mocks.TABLE_NAME,
             KeySchema=[{'AttributeName': 'Pk', 'KeyType': 'HASH'}],
             AttributeDefinitions=[{'AttributeName': 'Pk', 'AttributeType': 'S'}],
@@ -46,7 +48,7 @@ def dynamodb():
             for record in mocks.TASK_LIST:
                 batch.put_item(Item=record)
 
-        yield dynamodb
+        yield dynamodb_resource, dynamodb_client
 
 @pytest.fixture(scope='session')
 def sqs():

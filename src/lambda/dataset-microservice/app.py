@@ -16,6 +16,7 @@ logger = Logger()
 
 STAGE_PREFIX = '/' + os.getenv('API_STAGE', 'dev')
 _DYNAMODB_RESOURCE = {
+    'client' : boto3.client('dynamodb'),
     'resource' : boto3.resource('dynamodb'),
     'table_name' : os.getenv('TABLE_NAME')
 }

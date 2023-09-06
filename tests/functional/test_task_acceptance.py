@@ -45,8 +45,11 @@ def api_client(lambda_context, build_api_request):
 
 @pytest.fixture(autouse=True)
 def set_aws_resources(monkeypatch, dynamodb, sqs, s3):
+    dynamodb_resource, dynamodb_client = dynamodb
+
     monkeypatch.setattr(app, '_DYNAMODB_RESOURCE', {
-        'resource': dynamodb,
+        'client': dynamodb_client,
+        'resource': dynamodb_resource,
         'table_name': mocks.TABLE_NAME
     })
     monkeypatch.setattr(app, '_SQS_RESOURCE', {
@@ -111,6 +114,8 @@ class TestTaskEndpoints:
 
 class TestTaskWorkflow:
     def test_request_task_and_submit(self, api_client, dynamodb):
+        dynamodb_resource, _ = dynamodb
+        
         # Step 1: Create task
         base_task_url = '/dev/tasks'
         create_form = {
@@ -168,7 +173,7 @@ class TestTaskWorkflow:
         response = api_client('GET', detail_task_url)
         assert parse_body(response)['TaskStatus'] == TaskStatusEnum.QUEUED
 
-        self.update_task_to_completed(task_id, dynamodb)
+        self.update_task_to_completed(task_id, dynamodb_resource)
         response = api_client('GET', detail_task_url)
         assert parse_body(response)['TaskStatus'] == TaskStatusEnum.COMPLETED
 

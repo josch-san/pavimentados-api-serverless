@@ -1,3 +1,4 @@
+from botocore.exceptions import ClientError
 from aws_lambda_powertools import Logger
 from aws_lambda_powertools.event_handler.exceptions import (
     BadRequestError
@@ -19,6 +20,16 @@ class DatasetService:
 
         try:
             dataset = self.repository.create_dataset(form)
+
+        except ClientError as e:
+            if e.response['Error']['Code'] == 'TransactionCanceledException':
+                if any(
+                    reason['Code'] == 'ConditionalCheckFailed'
+                    for reason in e.response['CancellationReasons']
+                ):
+                    raise BadRequestError(f"Dataset with '{form['Slug']}' Slug already exists.")
+
+            raise e
 
         except Exception as e:
             logger.error(e.errors())
