@@ -1,6 +1,7 @@
 from botocore.exceptions import ClientError
 from aws_lambda_powertools import Logger
 from aws_lambda_powertools.event_handler.exceptions import (
+    NotFoundError,
     BadRequestError
 )
 
@@ -14,6 +15,9 @@ logger = Logger(child=True)
 class DatasetService:
     def __init__(self, dynamodb_resource: LambdaDynamoDB):
         self.repository = DatasetRepository(dynamodb_resource)
+
+    def list(self) -> list[Dataset]:
+        return self.repository.list_datasets()
 
     def create(self, form: dict, user_sub: str) -> Dataset:
         form['UserSub'] = user_sub
@@ -36,4 +40,20 @@ class DatasetService:
             raise BadRequestError('Dataset could not be created.')
 
         logger.info('Dataset successful created.')
+        return dataset
+
+    def retrieve(self, dataset_id: str) -> Dataset:
+        try:
+            dataset = self.repository.get_dataset(dataset_id)
+        except KeyError:
+            raise NotFoundError
+
+        return dataset
+
+    def retrieve_by_slug(self, dataset_slug: str) -> Dataset:
+        try:
+            dataset = self.repository.get_dataset_by_slug(dataset_slug)
+        except IndexError:
+            raise NotFoundError
+
         return dataset

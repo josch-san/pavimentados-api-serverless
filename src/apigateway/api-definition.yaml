@@ -5,7 +5,7 @@ info:
       - 'pavimentados-api${suffix}'
       - suffix:
           Fn::FindInMap: [ModeMap, {Ref: Mode}, ModeSuffix]
-  description: Main API for pavimentados.
+  description: API for pavimentados serverless version
   version: 1.0
 
 paths:

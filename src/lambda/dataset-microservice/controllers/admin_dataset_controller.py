@@ -14,6 +14,17 @@ def get_user_sub(event: APIGatewayProxyEvent):
     return event.request_context.authorizer.claims['sub']
 
 
+@router.get('/')
+@tracer.capture_method
+def list_datasets():
+    dataset_service = DatasetService(router.context.get('dynamodb_resource'))
+
+    datasets = dataset_service.list()
+    return {
+        'items': datasets
+    }
+
+
 @router.post('/')
 @tracer.capture_method
 def create_dataset():
@@ -25,3 +36,11 @@ def create_dataset():
     )
 
     return dataset, HTTPStatus.CREATED
+
+
+@router.get('/<datasetId>')
+@tracer.capture_method
+def retrieve_dataset(datasetId: str):
+    dataset_service = DatasetService(router.context.get('dynamodb_resource'))
+
+    return dataset_service.retrieve(datasetId)

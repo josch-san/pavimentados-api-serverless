@@ -144,7 +144,9 @@ Resources:
               - 
                 Effect: Allow
                 Action: lambda:InvokeFunction
-                Resource: !GetAtt TaskMicroserviceFunction.Arn
+                Resource:
+                  - !GetAtt TaskMicroserviceFunction.Arn
+                  - !GetAtt DatasetMicroserviceFunction.Arn
 
   StatesRole:
     Type: AWS::IAM::Role
@@ -387,7 +389,7 @@ Resources:
   PavimentadosApi:
     Type: AWS::Serverless::Api
     Properties:
-      Description: Main API access to work with infradinamica
+      Description: API for pavimentados serverless version
       StageName: !FindInMap [ModeMap, !Ref Mode, ApiStage]
       EndpointConfiguration:
         Type: REGIONAL
