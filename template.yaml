@@ -116,6 +116,8 @@ Resources:
                 Resource:
                   - !Sub 'arn:aws:s3:::${AttachmentsBucketName}'
                   - !Sub 'arn:aws:s3:::${AttachmentsBucketName}/*'
+                  - !Sub 'arn:aws:s3:::${DatalakeBucketName}'
+                  - !Sub 'arn:aws:s3:::${DatalakeBucketName}/*'
               - 
                 Effect: Allow
                 Action: sqs:SendMessage
