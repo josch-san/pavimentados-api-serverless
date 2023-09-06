@@ -12,7 +12,7 @@ class DatasetRepository:
 
     def list_datasets(self) -> list[Dataset]:
         response = self.resource.table.scan(
-            FilterExpression=Attr('__typename').eq('DATASET')
+            FilterExpression=Attr('__typename').eq('Dataset')
         )
 
         return parse_obj_as(list[Dataset], response['Items'])
@@ -55,7 +55,7 @@ class DatasetRepository:
     def get_dataset_by_slug(self, dataset_slug: str) -> Dataset:
         response = self.resource.table.scan(
             FilterExpression=(
-                Attr('__typename').eq('DATASET') &
+                Attr('__typename').eq('Dataset') &
                 Attr('Slug').eq(dataset_slug)
             )
         )

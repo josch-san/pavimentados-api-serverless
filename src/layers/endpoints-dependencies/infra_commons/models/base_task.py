@@ -67,7 +67,7 @@ class BaseTask(BaseModel):
         return {
             **self.dynamodb_key,
             **self.raw_dict(),
-            '__typename': 'TASK'
+            '__typename': 'Task'
             # 'Gsi1Pk': 'TASK'
         }
 

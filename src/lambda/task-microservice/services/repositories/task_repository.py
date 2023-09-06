@@ -11,7 +11,7 @@ class TaskRepository:
 
     def list_tasks(self) -> list[Task]:
         response = self.resource.table.scan(
-            FilterExpression=Attr('__typename').eq('TASK')
+            FilterExpression=Attr('__typename').eq('Task')
         )
 
         return parse_obj_as(list[Task], response['Items'])

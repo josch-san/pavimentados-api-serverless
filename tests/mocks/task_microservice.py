@@ -36,7 +36,7 @@ DRAFT_TASK = {
     'Outputs': None,
     'OutputMessage': None,
     'AccessLevel': 'app',
-    '__typename': 'TASK'
+    '__typename': 'Task'
 }
 
 NOT_OWNED_DRAFT_TASK = {
@@ -72,7 +72,7 @@ NOT_OWNED_DRAFT_TASK = {
     'Outputs': None,
     'OutputMessage': None,
     'AccessLevel': 'app',
-    '__typename': 'TASK'
+    '__typename': 'Task'
 }
 
 DRAFT_TASK_TO_SUBMIT = {
@@ -120,7 +120,7 @@ DRAFT_TASK_TO_SUBMIT = {
     'Outputs': None,
     'OutputMessage': None,
     'AccessLevel': 'app',
-    '__typename': 'TASK'
+    '__typename': 'Task'
 }
 
 COMPLETED_TASK = {
@@ -181,7 +181,7 @@ COMPLETED_TASK = {
     'AppServiceSlug': 'pavimenta2#road_sections_inference',
     'TaskStatus': 'completed',
     'AccessLevel': 'app',
-    '__typename': 'TASK'
+    '__typename': 'Task'
 }
 
 TASK_LIST = [

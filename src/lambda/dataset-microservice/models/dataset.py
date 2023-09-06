@@ -66,6 +66,9 @@ class Dataset(BaseModel):
         return {
             **self.dynamodb_key,
             **self.raw_dict(),
-            '__typename': 'DATASET'
-            # 'Gsi1Pk': 'TASK'
+            '__typename': 'Dataset'
+            # 'Gsi1Pk': 'DATASET'
         }
+
+    def is_dir(self) -> bool:
+        return self.DatasetConfig.Key.endswith('/')

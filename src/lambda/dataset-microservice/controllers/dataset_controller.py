@@ -31,6 +31,9 @@ def get_public_dataset_signed_url(datasetSlug: str):
     if dataset.RepositoryType != RepositoryTypeEnum.AMAZON_S3:
         raise BadRequestError('Dataset RepositoryType must be "amazon-s3" to return signed url')
 
+    if dataset.is_dir():
+        raise BadRequestError('Directory Dataset signed url is not supported yet')
+
     return {
         'url': storage_service.generate_signed_download_url(dataset.DatasetConfig)
     }
