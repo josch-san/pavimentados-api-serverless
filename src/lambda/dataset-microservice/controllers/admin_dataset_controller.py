@@ -3,7 +3,7 @@ from aws_lambda_powertools import Tracer
 from aws_lambda_powertools.event_handler.router import APIGatewayRouter
 from aws_lambda_powertools.utilities.data_classes import APIGatewayProxyEvent
 
-# from infra_commons.services.storage_service import StorageService
+from infra_commons.services.storage_service import StorageService
 from services.dataset_service import DatasetService
 
 tracer = Tracer()
@@ -44,3 +44,26 @@ def retrieve_dataset(datasetId: str):
     dataset_service = DatasetService(router.context.get('dynamodb_resource'))
 
     return dataset_service.retrieve(datasetId)
+
+
+@router.get('/<datasetId>/listObjects')
+@tracer.capture_method
+def list_dataset_objects(datasetId: str):
+    storage_service = StorageService(router.context.get('s3_resource'))
+    # TODO: pending to handle pagination.
+
+    dataset = retrieve_dataset(datasetId)
+    s3_list_response = storage_service.list_objects(dataset.DatasetConfig)
+
+    contents = [
+        {
+            key: item[key]
+            for key in ['Key', 'LastModified', 'Size']
+        }
+        for item in s3_list_response['Contents']
+    ]
+
+    return {
+        'Contents': contents,
+        'Prefix': s3_list_response['Prefix']
+    }

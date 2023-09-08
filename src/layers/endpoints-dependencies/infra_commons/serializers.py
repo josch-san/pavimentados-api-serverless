@@ -1,8 +1,7 @@
 import json
+from datetime import datetime
 from json import JSONEncoder
-
 from pydantic import BaseModel
-from infra_commons.models.base_task import BaseTask
 
 
 class CustomEncoder(JSONEncoder):
@@ -11,6 +10,8 @@ class CustomEncoder(JSONEncoder):
             return obj.raw_dict()
         if isinstance(obj, BaseModel):
             return obj.dict(by_alias=True)
+        if isinstance(obj, datetime):
+            return obj.replace(tzinfo=None).isoformat(timespec='milliseconds') + 'Z'
         return super().default(obj)
 
 

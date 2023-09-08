@@ -298,6 +298,22 @@ paths:
         '204':
           description: Success response
 
+  /admin/datasets/{datasetId}/listObjects:
+    get:
+      security:
+        - user-pool-authorizer: []
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        passthroughBehavior: when_no_match
+        credentials:
+          Fn::GetAtt: ApiGatewayRole.Arn
+        uri:
+          Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${DatasetMicroserviceFunction.Arn}/invocations
+      x-amazon-apigateway-request-validator: params-only
+      parameters:
+        - $ref: '#/components/parameters/datasetId'
+
   /public/datasets/{datasetSlug}/signedUrl:
     get:
       x-amazon-apigateway-integration:

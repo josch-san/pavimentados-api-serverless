@@ -70,6 +70,3 @@ class TestDatasetEndpoints:
 
         response = api_client('POST', '/admin/datasets', body=create_form)
         assert response['statusCode'] == HTTPStatus.CREATED
-
-        created_dataset = parse_body(response)
-        dataset_id = created_dataset['Id']
