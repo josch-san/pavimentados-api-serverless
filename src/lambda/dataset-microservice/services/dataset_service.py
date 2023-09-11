@@ -50,6 +50,22 @@ class DatasetService:
 
         return dataset
 
+    def destroy(self, dataset_id: str) -> None:
+        dataset = self.retrieve(dataset_id)
+
+        try:
+            self.repository.delete_dataset(dataset)
+
+        except ClientError as e:
+            if e.response['Error']['Code'] == 'TransactionCanceledException':
+                if any(
+                    reason['Code'] == 'ConditionalCheckFailed'
+                    for reason in e.response['CancellationReasons']
+                ):
+                    raise BadRequestError(f"Dataset with '{dataset_id}' Id could not be deleted.")
+
+            raise e
+
     def retrieve_by_slug(self, dataset_slug: str) -> Dataset:
         try:
             dataset = self.repository.get_dataset_by_slug(dataset_slug)

@@ -33,10 +33,7 @@ class DatasetRepository:
                 {
                     'Put': {
                         'TableName': self.resource.table_name,
-                        'Item': to_dynamodb_format({
-                            'Pk': f'DATASET#{dataset.Slug}',
-                            'Id': str(dataset.Id)
-                        }),
+                        'Item': to_dynamodb_format(dataset.slug_dynamodb_record),
                         'ConditionExpression': 'attribute_not_exists(Pk)'
                     }
                 }
@@ -51,6 +48,26 @@ class DatasetRepository:
         )
 
         return Dataset.parse_obj(response['Item'])
+
+    def delete_dataset(self, dataset: Dataset) -> None:
+        self.resource.client.transact_write_items(
+            TransactItems=[
+                {
+                    'Delete': {
+                        'TableName': self.resource.table_name,
+                        'Key': to_dynamodb_format(dataset.dynamodb_key),
+                        'ConditionExpression': 'attribute_exists(Pk)'
+                    }
+                },
+                {
+                    'Delete': {
+                        'TableName': self.resource.table_name,
+                        'Key': to_dynamodb_format(dataset.slug_dynamodb_key),
+                        'ConditionExpression': 'attribute_exists(Pk)'
+                    }
+                }
+            ]
+        )
 
     def get_dataset_by_slug(self, dataset_slug: str) -> Dataset:
         response = self.resource.table.scan(

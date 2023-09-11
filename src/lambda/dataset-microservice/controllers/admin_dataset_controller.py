@@ -46,6 +46,15 @@ def retrieve_dataset(datasetId: str):
     return dataset_service.retrieve(datasetId)
 
 
+@router.delete('/<datasetId>')
+@tracer.capture_method
+def delete_dataset(datasetId: str):
+    dataset_service = DatasetService(router.context.get('dynamodb_resource'))
+
+    dataset_service.destroy(datasetId)
+    return None, HTTPStatus.NO_CONTENT
+
+
 @router.get('/<datasetId>/listObjects')
 @tracer.capture_method
 def list_dataset_objects(datasetId: str):

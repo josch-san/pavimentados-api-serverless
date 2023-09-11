@@ -70,5 +70,18 @@ class Dataset(BaseModel):
             # 'Gsi1Pk': 'DATASET'
         }
 
+    @property
+    def slug_dynamodb_key(self) -> dict:
+        return {
+            'Pk': 'DATASET#{}'.format(self.Slug)
+        }
+
+    @property
+    def slug_dynamodb_record(self) -> dict:
+        return {
+            **self.slug_dynamodb_key,
+            'Id': str(self.Id)
+        }
+
     def is_dir(self) -> bool:
         return self.DatasetConfig.Key.endswith('/')
