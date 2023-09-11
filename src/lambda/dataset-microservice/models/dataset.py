@@ -10,13 +10,13 @@ from infra_commons.models.s3_object import S3ObjectReference
 DATASET_SLUG_PATTERN = r'^[a-z]{2}[a-z0-9\_]*(?:#[a-z]{2}[a-z0-9\_]*)*$'
 
 
-class AccessLevelEnum(str, Enum):
+class DatasetAccessLevelEnum(str, Enum):
     PUBLIC = 'public'
     # PRIVATE_INFRA = 'private-infra'
     PRIVATE_APP = 'private-app'
 
 
-class RepositoryTypeEnum(str, Enum):
+class DatasetRepositoryTypeEnum(str, Enum):
     AMAZON_S3 = 'amazon-s3'
     AMAZON_ATHENA = 'amazon-athena'
     SQL = 'sql'
@@ -29,8 +29,8 @@ class Dataset(BaseModel):
     Description: Optional[str]
     UserSub: Optional[UUID]
     Owner: Optional[str]
-    AccessLevel: AccessLevelEnum = AccessLevelEnum.PRIVATE_APP
-    RepositoryType: RepositoryTypeEnum = RepositoryTypeEnum.AMAZON_S3
+    AccessLevel: DatasetAccessLevelEnum = DatasetAccessLevelEnum.PRIVATE_APP
+    RepositoryType: DatasetRepositoryTypeEnum = DatasetRepositoryTypeEnum.AMAZON_S3
     CreatedAt: datetime = Field(default_factory=datetime.utcnow)
     ModifiedAt: datetime = Field(default_factory=datetime.utcnow)
     DatasetConfig: S3ObjectReference = Field(alias='Config')

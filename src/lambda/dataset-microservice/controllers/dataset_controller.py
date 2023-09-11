@@ -8,7 +8,7 @@ from aws_lambda_powertools.event_handler.exceptions import (
 
 from infra_commons.services.storage_service import StorageService
 from services.dataset_service import DatasetService
-from models.dataset import AccessLevelEnum, RepositoryTypeEnum
+from models.dataset import DatasetAccessLevelEnum, DatasetRepositoryTypeEnum
 
 tracer = Tracer()
 router = APIGatewayRouter()
@@ -25,10 +25,10 @@ def get_public_dataset_signed_url(datasetSlug: str):
         decoded_dataset_slug.lower()
     )
 
-    if dataset.AccessLevel != AccessLevelEnum.PUBLIC:
+    if dataset.AccessLevel != DatasetAccessLevelEnum.PUBLIC:
         raise UnauthorizedError('This dataset is not publicly accessible')
 
-    if dataset.RepositoryType != RepositoryTypeEnum.AMAZON_S3:
+    if dataset.RepositoryType != DatasetRepositoryTypeEnum.AMAZON_S3:
         raise BadRequestError('Dataset RepositoryType must be "amazon-s3" to return signed url')
 
     if dataset.is_dir():

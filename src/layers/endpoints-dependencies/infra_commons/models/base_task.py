@@ -19,7 +19,7 @@ class TaskStatusEnum(str, Enum):
     CANCELED = 'canceled'
 
 
-class AccessLevelEnum(str, Enum):
+class TaskAccessLevelEnum(str, Enum):
     USER = 'user'
     APP = 'app'
 
@@ -32,7 +32,7 @@ class BaseTask(BaseModel):
     CreatedAt: datetime = Field(default_factory=datetime.utcnow)
     ModifiedAt: datetime = Field(default_factory=datetime.utcnow)
     TaskStatus: TaskStatusEnum = TaskStatusEnum.DRAFT
-    AccessLevel: AccessLevelEnum = AccessLevelEnum.APP
+    AccessLevel: TaskAccessLevelEnum = TaskAccessLevelEnum.APP
     AppServiceSlug: str
     Inputs: Optional[dict]
     Outputs: Optional[dict]

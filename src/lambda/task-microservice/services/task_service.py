@@ -8,10 +8,9 @@ from aws_lambda_powertools.event_handler.exceptions import (
 )
 
 from infra_commons.models.s3_object import InputS3Content
-from infra_commons.models.base_task import TaskStatusEnum
 from infra_commons.aws_resources import LambdaDynamoDB
 from services.repositories.task_repository import TaskRepository
-from models.task import Task
+from models.task import Task, TaskStatusEnum
 
 logger = Logger(child=True)
 
