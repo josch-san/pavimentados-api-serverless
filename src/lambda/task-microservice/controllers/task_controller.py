@@ -92,3 +92,16 @@ def submit(taskId: str):
         task.build_event_payload()
     )
     return task, HTTPStatus.ACCEPTED
+
+
+@router.post('/<taskId>/generateOutputDownloadUrl')
+@tracer.capture_method
+def generate_output_download_url(taskId: str):
+    task_service = TaskService(router.context.get('dynamodb_resource'))
+
+    signed_urls = task_service.generate_output_signed_urls(
+        taskId,
+        router.current_event.json_body
+    )
+
+    return signed_urls

@@ -115,7 +115,7 @@ class TestTaskEndpoints:
 class TestTaskWorkflow:
     def test_request_task_and_submit(self, api_client, dynamodb):
         dynamodb_resource, _ = dynamodb
-        
+
         # Step 1: Create task
         base_task_url = '/dev/tasks'
         create_form = {

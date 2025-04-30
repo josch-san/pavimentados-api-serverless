@@ -3,6 +3,10 @@ Transform: AWS::Serverless-2016-10-31
 Description: Infra serverless core resources
 
 Parameters:
+  SesIdentityDomain:
+    Type: String
+    Description: SES identity domain to send emails.
+    Default: ''
   Mode:
     Type: String
     Description: Environment context
@@ -21,6 +25,8 @@ Mappings:
     prod:
       ModeSuffix: ''
 
+Conditions:
+  HasSesDomain: !Not [!Equals [!Ref SesIdentityDomain, '']]
 
 Resources:
   ArtifactsBucket:
@@ -109,39 +115,33 @@ Resources:
       TableName: !Sub
         - 'infra${suffix}'
         - suffix: !FindInMap [ModeMap, !Ref Mode, ModeSuffix]
-      BillingMode: PROVISIONED
+      BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
         - 
           AttributeName: Pk
           AttributeType: S
-        # - 
-        #   AttributeName: Sk
-        #   AttributeType: S
-        # - 
-        #   AttributeName: Gsi1Pk
-        #   AttributeType: S
+        - 
+          AttributeName: Sk
+          AttributeType: S
+        - 
+          AttributeName: Gsi1Pk
+          AttributeType: S
       KeySchema:
         - 
           AttributeName: Pk
           KeyType: HASH
-        # - 
-        #   AttributeName: Sk
-        #   KeyType: RANGE
-      ProvisionedThroughput:
-        ReadCapacityUnits: 2
-        WriteCapacityUnits: 2
-      # GlobalSecondaryIndexes:
-      #   - 
-      #     IndexName: gsi1
-      #     KeySchema:
-      #       - 
-      #         AttributeName: Gsi1Pk
-      #         KeyType: HASH
-      #     Projection:
-      #       ProjectionType: ALL
-      #     ProvisionedThroughput:
-      #       ReadCapacityUnits: 2
-      #       WriteCapacityUnits: 2
+        - 
+          AttributeName: Sk
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - 
+          IndexName: gsi1
+          KeySchema:
+            - 
+              AttributeName: Gsi1Pk
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
       Tags:
         - Key: Product
           Value: Infra
@@ -162,13 +162,18 @@ Resources:
             Priority: 1
       AdminCreateUserConfig:
         AllowAdminCreateUserOnly: true
-        InviteMessageTemplate:
-          EmailMessage: Tu usuario de acceso a infra-core es {username} y la contraseña temporal es {####}
-          EmailSubject: Bienvenido a InfraCore
       AutoVerifiedAttributes:
         - email
       EmailConfiguration:
-        EmailSendingAccount: COGNITO_DEFAULT
+        EmailSendingAccount: !If [HasSesDomain, DEVELOPER, COGNITO_DEFAULT]
+        SourceArn: !If
+          - HasSesDomain
+          - !Sub 'arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/${SesIdentityDomain}'
+          - !Ref AWS::NoValue
+        From: !If
+          - HasSesDomain
+          - !Sub 'noreply@${SesIdentityDomain}'
+          - !Ref AWS::NoValue
       MfaConfiguration: 'OFF'
       Policies:
         PasswordPolicy:
@@ -177,7 +182,7 @@ Resources:
           RequireSymbols: true
           RequireLowercase: false
           RequireUppercase: false
-          TemporaryPasswordValidityDays: 7
+          TemporaryPasswordValidityDays: 30
       Schema:
         - Name: given_name
           AttributeDataType: String
@@ -193,8 +198,8 @@ Resources:
         CaseSensitive: false
       VerificationMessageTemplate:
         DefaultEmailOption: CONFIRM_WITH_CODE
-        EmailMessage: Tu codigo de verificación es {####}.
-        EmailSubject: InfraCore - Código de verificación
+      LambdaConfig:
+        CustomMessage: !GetAtt UserPoolCustomizeMessageFunction.Arn
       UserPoolTags:
         Product: Infra
         Environment: !Ref Mode
@@ -208,6 +213,66 @@ Resources:
         - 'infra-user-pool${suffix}-${stackReference}'
         - suffix: !FindInMap [ModeMap, !Ref Mode, ModeSuffix]
           stackReference: !Select [ 4, !Split [ '-', !Select [ 2, !Split [ '/', !Ref AWS::StackId ] ] ] ]
+
+  UserPoolCustomizeMessageFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub
+        - 'infra-user-pool-customize-message${envSuffix}'
+        - envSuffix: !FindInMap [ModeMap, !Ref Mode, ModeSuffix]
+      Description: Customize UserPool messages sent to users
+      Handler: index.lambda_handler
+      Timeout: 30
+      MemorySize: 128
+      Runtime: python3.11
+      Policies:
+        - AWSLambdaBasicExecutionRole
+      InlineCode: |
+        DEFAULT_APP_NAME = 'InfraCore'
+        DEFAULT_URL = 'https://infradinamica.org'
+
+        INVITATION_SUBJECT_TEMPLATE = 'Bienvenido a {app_name}'
+        INVITATION_MESSAGE_TEMPLATE = '''<html>
+          <body>
+            <p>
+              Hola {username_parameter},
+              <br /><br />
+              Te invitamos a la aplicación <b>{app_name}</b>.<br />
+              Tu usuario de acceso a infra-core es <b>{username_parameter}</b> y la contraseña temporal es <b>{code_parameter}</b><br />
+              puedes acceder mediante el siguiente vínculo: <a href="{url}">{app_name}</a>
+              <br /><br />
+              Saludos!
+            </p>
+          </body>
+        </html>'''
+
+
+        def lambda_handler(event, context):
+            if event['triggerSource'] == 'CustomMessage_AdminCreateUser':
+                event['response']['emailSubject'] = INVITATION_SUBJECT_TEMPLATE.format(
+                    app_name=event['request'].get('clientMetadata', {}).get('app_name', DEFAULT_APP_NAME)
+                )
+
+                event['response']['emailMessage'] = INVITATION_MESSAGE_TEMPLATE.format(
+                    username_parameter=event['request']['usernameParameter'],
+                    code_parameter=event['request']['codeParameter'],
+                    app_name=event['request'].get('clientMetadata', {}).get('app_name', DEFAULT_APP_NAME),
+                    url=event['request'].get('clientMetadata', {}).get('url', DEFAULT_URL)
+                )
+
+            return event
+    Tags:
+      Product: Infra
+      Environment: !Ref Mode
+      Name: UserPoolCustomizeMessageFunction
+
+  CognitoUserPoolLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Principal: cognito-idp.amazonaws.com
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref UserPoolCustomizeMessageFunction
+      SourceArn: !GetAtt CognitoUserPool.Arn
 
 Outputs:
   TableName:

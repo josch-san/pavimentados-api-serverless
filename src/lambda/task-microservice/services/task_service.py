@@ -94,3 +94,14 @@ class TaskService:
         self.repository.partial_update(task, ['TaskStatus', 'ModifiedAt'])
 
         return task
+
+    def generate_output_signed_urls(self, task_id: str, body: dict):
+        task = self.retrieve(task_id)
+
+        if task.TaskStatus != TaskStatusEnum.COMPLETED:
+            raise BadRequestError(f"Cannot generate signed urls for task '{task_id}' because is not in status 'completed'.")
+
+        elif task.Outputs == None:
+            raise BadRequestError(f"Task '{task_id}' doesn't have Outputs field.")
+        
+        field_name = body.get('FieldName')

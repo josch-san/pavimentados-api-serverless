@@ -146,26 +146,26 @@ paths:
             schema:
               $ref: '#/components/schemas/TaskGenerateAttachmentUploadUrlPayload'
 
-  # /tasks/{taskId}/generateOutputDownloadUrl:
-  #   post:
-  #     security:
-  #       - user-pool-authorizer: []
-  #     x-amazon-apigateway-integration:
-  #       type: aws_proxy
-  #       httpMethod: POST
-  #       passthroughBehavior: when_no_match
-  #       credentials:
-  #         Fn::GetAtt: ApiGatewayRole.Arn
-  #       uri:
-  #         Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${TaskMicroserviceFunction.Arn}/invocations
-  #     x-amazon-apigateway-request-validator: params-only
-  #     parameters:
-  #       - $ref: '#/components/parameters/taskId'
-  #     requestBody:
-  #       content:
-  #         application/json:
-  #           schema:
-  #             $ref: '#/components/schemas/TaskGenerateOutputDownloadUrlPayload'
+  /tasks/{taskId}/generateOutputDownloadUrl:
+    post:
+      security:
+        - user-pool-authorizer: []
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        passthroughBehavior: when_no_match
+        credentials:
+          Fn::GetAtt: ApiGatewayRole.Arn
+        uri:
+          Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${TaskMicroserviceFunction.Arn}/invocations
+      x-amazon-apigateway-request-validator: params-only
+      parameters:
+        - $ref: '#/components/parameters/taskId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskGenerateOutputDownloadUrlPayload'
 
   /tasks/{taskId}/submit:
     post:
