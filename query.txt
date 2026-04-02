@@ -1,0 +1,135 @@
+{
+    "Items": [
+        {
+            "__typename": {
+                "S": "Dataset"
+            },
+            "UserSub": {
+                "S": "62279af8-26ba-42e4-aa43-f7deeffc3e1a"
+            },
+            "Config": {
+                "M": {
+                    "Bucket": {
+                        "S": "infra-datalake-dev-195419001736"
+                    },
+                    "Key": {
+                        "S": "pavimenta2/geography/geography_road_co.json"
+                    }
+                }
+            },
+            "Description": {
+                "NULL": true
+            },
+            "ModifiedAt": {
+                "S": "2026-01-20T21:31:35.627Z"
+            },
+            "Owner": {
+                "NULL": true
+            },
+            "Slug": {
+                "S": "pavimenta2#geography_road_co"
+            },
+            "IsDeleted": {
+                "BOOL": false
+            },
+            "Sk": {
+                "S": "VERSION#2026-01-20T21:31:35.627Z"
+            },
+            "RepositoryType": {
+                "S": "amazon-s3"
+            },
+            "Metadata": {
+                "NULL": true
+            },
+            "Id": {
+                "S": "277cb4e6-2720-4052-ba73-b5ba461a3170"
+            },
+            "Pk": {
+                "S": "DATASET#277cb4e6-2720-4052-ba73-b5ba461a3170"
+            },
+            "Name": {
+                "S": "Geography resource to pavimentados request form - CO"
+            },
+            "CreatedAt": {
+                "S": "2026-01-20T21:31:35.627Z"
+            },
+            "AccessLevel": {
+                "S": "public"
+            }
+        },
+        {
+            "__typename": {
+                "S": "Dataset"
+            },
+            "UserSub": {
+                "S": "62279af8-26ba-42e4-aa43-f7deeffc3e1a"
+            },
+            "Config": {
+                "M": {
+                    "Bucket": {
+                        "S": "infra-datalake-dev-195419001736"
+                    },
+                    "Key": {
+                        "S": "pavimenta2/geography/geography_road_co.json"
+                    }
+                }
+            },
+            "Description": {
+                "NULL": true
+            },
+            "ModifiedAt": {
+                "S": "2026-01-20T21:31:35.627Z"
+            },
+            "Owner": {
+                "NULL": true
+            },
+            "Sk": {
+                "S": "VERSION#LATEST"
+            },
+            "Slug": {
+                "S": "pavimenta2#geography_road_co"
+            },
+            "IsDeleted": {
+                "BOOL": false
+            },
+            "RepositoryType": {
+                "S": "amazon-s3"
+            },
+            "Metadata": {
+                "NULL": true
+            },
+            "Id": {
+                "S": "277cb4e6-2720-4052-ba73-b5ba461a3170"
+            },
+            "Pk": {
+                "S": "DATASET#277cb4e6-2720-4052-ba73-b5ba461a3170"
+            },
+            "Name": {
+                "S": "Geography resource to pavimentados request form - CO"
+            },
+            "CreatedAt": {
+                "S": "2026-01-20T21:31:35.627Z"
+            },
+            "AccessLevel": {
+                "S": "public"
+            }
+        },
+        {
+            "Slug": {
+                "S": "pavimenta2#geography_road_co"
+            },
+            "Sk": {
+                "S": "pavimenta2#geography_road_co"
+            },
+            "Id": {
+                "S": "277cb4e6-2720-4052-ba73-b5ba461a3170"
+            },
+            "Pk": {
+                "S": "DATASET#SLUG"
+            }
+        }
+    ],
+    "Count": 3,
+    "ScannedCount": 137,
+    "ConsumedCapacity": null
+}

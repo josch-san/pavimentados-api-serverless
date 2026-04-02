@@ -5,4 +5,4 @@ FROM 763104351884.dkr.ecr.us-east-1.amazonaws.com/tensorflow-training:2.6.2-cpu-
 
 RUN python3 -m pip install --upgrade pip --no-cache-dir
 RUN pip3 install --upgrade --no-cache-dir \
-    pavimentados==0.29.1 awswrangler==3.2.1
+    pavimentados==0.29.1 awswrangler==3.9.1

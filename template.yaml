@@ -59,7 +59,7 @@ Mappings:
 Globals:
   Function:
     Timeout: 30
-    Runtime: python3.9
+    Runtime: python3.12
     Tracing: Active
     Environment:
       Variables:
@@ -116,6 +116,15 @@ Resources:
                 Resource:
                   - !Sub 'arn:aws:s3:::${AttachmentsBucketName}'
                   - !Sub 'arn:aws:s3:::${AttachmentsBucketName}/*'
+              -
+                Effect: Allow
+                Action:
+                  - s3:ListBucket
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource:
+                  - !Sub 'arn:aws:s3:::${DatalakeBucketName}'
+                  - !Sub 'arn:aws:s3:::${DatalakeBucketName}/*'
               - 
                 Effect: Allow
                 Action: sqs:SendMessage
@@ -144,7 +153,9 @@ Resources:
               - 
                 Effect: Allow
                 Action: lambda:InvokeFunction
-                Resource: !GetAtt TaskMicroserviceFunction.Arn
+                Resource:
+                  - !GetAtt TaskMicroserviceFunction.Arn
+                  - !GetAtt DatasetMicroserviceFunction.Arn
 
   StatesRole:
     Type: AWS::IAM::Role
@@ -448,7 +459,7 @@ Resources:
       CodeUri: src/lambda/task-microservice
       Handler: app.lambda_handler
       Layers:
-        - !Sub 'arn:aws:lambda:${AWS::Region}:017000801446:layer:AWSLambdaPowertoolsPythonV2:32'
+        - !Sub 'arn:aws:lambda:${AWS::Region}:017000801446:layer:AWSLambdaPowertoolsPythonV2:64'
       Environment:
         Variables:
           POWERTOOLS_SERVICE_NAME: task-microservice
@@ -456,6 +467,26 @@ Resources:
           API_STAGE: !FindInMap [ModeMap, !Ref Mode, ApiStage]
           ATTACHMENTS_BUCKET_NAME: !Ref AttachmentsBucketName
           TASK_QUEUE_URL: !GetAtt InferenceQueue.QueueUrl
+
+  DatasetMicroserviceFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub
+        - 'pavimentados-dataset-microservice${suffix}'
+        - suffix: !FindInMap [ModeMap, !Ref Mode, ModeSuffix]
+      Role: !GetAtt LambdaRole.Arn
+      Description: Dataset microservice API handler function
+      CodeUri: src/lambda/dataset-microservice
+      Handler: app.lambda_handler
+      Layers:
+        - !Sub 'arn:aws:lambda:${AWS::Region}:017000801446:layer:AWSLambdaPowertoolsPythonV2:64'
+      Environment:
+        Variables:
+          POWERTOOLS_SERVICE_NAME: dataset-microservice
+          TABLE_NAME: !Ref InfraTableName
+          API_STAGE: !FindInMap [ModeMap, !Ref Mode, ApiStage]
+          ATTACHMENTS_BUCKET_NAME: !Ref AttachmentsBucketName
+          DATALAKE_BUCKET_NAME: !Ref DatalakeBucketName
 
   BuildPayloadFunction:
     Type: AWS::Serverless::Function

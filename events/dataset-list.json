@@ -1,0 +1,14 @@
+{
+  "httpMethod": "GET",
+  "path": "/dev/admin/datasets",
+  "pathParameters": {},
+  "queryStringParameters": null,
+  "headers": {
+    "Content-Type": "application/json",
+    "Authorization": "Bearer test-token"
+  },
+  "body": null,
+  "stageVariables": {
+    "API_STAGE": "dev"
+  }
+}

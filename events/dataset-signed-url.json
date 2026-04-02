@@ -1,0 +1,15 @@
+{
+  "httpMethod": "GET",
+  "path": "/dev/public/datasets/pavimenta2%23geography_road_co/signedUrl",
+  "pathParameters": {
+    "datasetSlug": "pavimenta2#geography_road_co"
+  },
+  "queryStringParameters": null,
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": null,
+  "stageVariables": {
+    "API_STAGE": "dev"
+  }
+}

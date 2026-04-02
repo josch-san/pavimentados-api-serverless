@@ -14,15 +14,16 @@ class GpsFile(InputS3ItemContent):
 
 
 class ImageBundle(InputS3ArrayContent):
-    Extension: str = Field('zip', const=True)
+    Extension: Literal['zip'] = 'zip'
 
 
 class VideoFile(InputS3ItemContent):
-    Extension: str = Field('mp4', const=True)
+    Extension: Literal['mp4'] = 'mp4'
 
 
 class ImageBundleInput(BaseModel):
     Geography: str
+    GeographySource: str
     ImageBundle: ImageBundle
     Type: Literal['image_bundle']
 
@@ -36,6 +37,7 @@ class ImageBundleInput(BaseModel):
 
 class ImageBundleGpsInput(BaseModel):
     Geography: str
+    GeographySource: str
     ImageBundle: ImageBundle
     GpsFile: GpsFile
     Type: Literal['image_bundle_gps']
@@ -53,6 +55,7 @@ class ImageBundleGpsInput(BaseModel):
 
 class VideoGpsInput(BaseModel):
     Geography: str
+    GeographySource: str
     VideoFile: VideoFile
     GpsFile: GpsFile
     Type: Literal['video_gps']
@@ -86,7 +89,7 @@ class PavimentadosTaskOutput(BaseModel):
 
 
 class Task(BaseTask):
-    AppServiceSlug: str = Field('pavimenta2#road_sections_inference', const=True)
+    AppServiceSlug: Literal['pavimenta2#road_sections_inference'] = 'pavimenta2#road_sections_inference'
     Inputs: Optional[PavimentadosTaskInput]
     Outputs: Optional[PavimentadosTaskOutput]
 
@@ -143,7 +146,7 @@ class Task(BaseTask):
 
     def update(self, payload: dict) -> None:
         updateable_fields = ['Name', 'Description', 'AccessLevel']
-        updateable_inputs = ['Geography']
+        updateable_inputs = ['Geography', 'GeographySource']
 
         updated_fields = []
         for key, value in payload.items():
