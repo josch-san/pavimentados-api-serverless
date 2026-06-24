@@ -15,7 +15,10 @@ The system consists of the following main components:
 - **Task Microservice (Lambda)**: Main API handler for task management
 
 ### Processing Pipeline
-- **Step Functions Workflow**: Orchestrates the inference process
+- **Inference Queue (SQS)**: Receives a message for every submitted task
+- **EventBridge Pipe**: Routes queue messages to the inference response workflow (no glue code)
+- **Inference Response Workflow (Step Functions)**: Consumes the message and writes a terminal status back to the task. **This is currently a placeholder** (see [Task Processing Flow](#task-processing-flow)) — it returns a simulated result without running SageMaker, and will be replaced by the SageMaker workflow below once that pipeline is wired to the queue.
+- **Road Section Inference Workflow (Step Functions)**: The real inference orchestration (not yet wired to the queue)
 - **Build Payload (Lambda)**: Prepares input data for SageMaker
 - **SageMaker Processing Job**: Runs ML inference in containers (CPU/GPU)
 - **Discover Outputs (Lambda)**: Catalogs output files
@@ -41,6 +44,7 @@ The system consists of the following main components:
   - `PUT /tasks/{taskId}`: Update task
   - `POST /tasks/{taskId}/generateAttachmentUploadUrl`: Generate S3 upload URL
   - `POST /tasks/{taskId}/submit`: Submit task for processing
+  - `GET /taskTypes`: List available task types
 - **Services**:
   - `TaskService`: CRUD operations on tasks
   - `QueueService`: Send messages to SQS
@@ -69,7 +73,11 @@ The system consists of the following main components:
 - CPU version: `src/ecr/road-section-inference-cpu/Dockerfile`
 - GPU version: `src/ecr/road-section-inference-gpu/Dockerfile`
 
-### Step Functions Workflow (`src/stepfunctions/RoadSectionInferenceWorkflow.yaml`)
+### Step Functions Workflows
+
+#### Road Section Inference Workflow (`src/stepfunctions/RoadSectionInferenceWorkflow.yaml`)
+The real ML inference orchestration. **Not currently triggered** — it will replace the
+placeholder workflow below once wired to the inference queue.
 States:
 1. **BuildPayload**: Prepare SageMaker parameters
 2. **SetProcessingStatus**: Update task status
@@ -77,6 +85,22 @@ States:
 4. **DiscoverOutputs**: Catalog output files
 5. **SetCompletedStatus**: Mark task complete
 Error handling: **SetFailedStatus** on failures
+
+#### Inference Response Workflow (`src/stepfunctions/InferenceResponseWorkflow.yaml`)
+> **Placeholder.** This workflow stands in for the SageMaker pipeline so the end-to-end
+> task lifecycle works today. It does **not** run any inference — it simply writes a
+> terminal status back to the task, mirroring the real workflow's DynamoDB transitions.
+> When the SageMaker pipeline is ready, the EventBridge Pipe target is repointed at
+> `RoadSectionInferenceWorkflow` and this workflow (plus the `ForceStatus` testing hook)
+> is removed.
+
+It is invoked by the **EventBridge Pipe** for each message on the inference queue.
+States:
+1. **ParseInput**: Parse the task payload from the SQS message body
+2. **SetProcessingStatus**: Update task status to `processing`
+3. **ProcessingDelay**: Brief wait so the status transition is observable
+4. **EvaluateResult** (Choice): `failed` if `Inputs.ForceStatus == "failed"`, otherwise `completed`
+5. **SetCompletedStatus** / **SetFailedStatus**: Write the terminal status and message
 
 ### Data Lake
 - **Glue Database**: `pavimentados{env}` (e.g., `pavimentados_dev`)
@@ -150,6 +174,19 @@ Test the API locally using SAM Local:
 ### AWS Testing
 After deployment, test against the deployed API URL (output from `sam deploy`).
 
+### Postman Collection
+A ready-to-use collection lives at
+[`postman/Pavimentados-Tasks.postman_collection.json`](postman/Pavimentados-Tasks.postman_collection.json).
+It exercises the full `/tasks` lifecycle plus `/taskTypes`.
+
+1. **Import**: in Postman, *Import* → select the JSON file.
+2. **Set collection variables** (collection → *Variables* tab):
+   - `baseUrl`: your deploy URL, e.g. `https://xxxx.execute-api.us-east-1.amazonaws.com/dev` (the `ApiUrl` stack output).
+   - `accessToken`: a Cognito **IdToken** (no `Bearer ` prefix). The collection sends it as a bearer token.
+   - `taskId`: leave empty — **Create task** captures it automatically into this variable.
+3. **Run in order**: List tasks → Create task → Get task → Update task → Generate attachment upload URL → Submit task → List tasks again. After *Submit task*, re-run *Get task by id* a few seconds later to watch the status move to `completed`.
+4. **To demo the failed path**: edit the *Create task* body and add `"ForceStatus": "failed"` inside `Inputs`, then run Create → Submit → Get; the task ends as `failed`.
+
 ## API Usage
 
 ### Authentication
@@ -157,36 +194,41 @@ The API uses Cognito User Pool authentication. Include the Authorization header 
 
 ### Task Lifecycle
 
-1. **Create Task**:
+1. **Create Task**: `Inputs.Type` selects the input shape — one of `image_bundle`,
+   `image_bundle_gps`, or `video_gps`. All shapes require `Geography` and `GeographySource`.
    ```http
    POST /tasks
    {
      "Name": "Road Analysis Task",
      "Description": "Analysis of highway section",
      "Inputs": {
-       "type": "video_gps",
-       "video_file": "video.mp4",
-       "gps_file": "gps.csv"
+       "Type": "image_bundle",
+       "Geography": "Pichincha",
+       "GeographySource": "manual"
      }
    }
    ```
 
-2. **Upload Files**:
+2. **Upload Files**: `FieldName` is the attachment field of the chosen input type
+   (`ImageBundle`, `VideoFile`, or `GpsFile`). `ArrayLength` applies to array fields
+   like `ImageBundle`.
    ```http
    POST /tasks/{taskId}/generateAttachmentUploadUrl
    {
-     "FieldName": "video_file",
-     "Extension": "mp4"
+     "FieldName": "ImageBundle",
+     "Extension": "zip",
+     "ArrayLength": 1
    }
    ```
-   Use the returned URL to upload the file.
+   Use the returned presigned URL(s) to upload the file(s).
 
-3. **Submit Task**:
+3. **Submit Task** (only allowed from `draft`):
    ```http
    POST /tasks/{taskId}/submit
    ```
+   This sets the task to `queued` and enqueues a message on the inference queue.
 
-4. **Check Status**:
+4. **Check Status** (poll until `completed` or `failed`):
    ```http
    GET /tasks/{taskId}
    ```
@@ -196,11 +238,49 @@ The API uses Cognito User Pool authentication. Include the Authorization header 
    GET /tasks
    ```
 
+### Task Processing Flow
+
+```
+POST /submit ──> set status=queued ──> SQS (inference queue)
+                                          │
+                                  EventBridge Pipe (batch size 1)
+                                          │
+                                          ▼
+                            Inference Response Workflow (Step Functions, placeholder)
+                                          │
+                          set status=processing ─> (delay) ─> evaluate
+                                          │
+                         ┌────────────────┴────────────────┐
+                         ▼                                 ▼
+                  status=completed                    status=failed
+```
+
+> **Placeholder behaviour:** the inference response workflow does not run SageMaker.
+> By default a submitted task ends as `completed`. To exercise the failed path, set
+> `"ForceStatus": "failed"` inside `Inputs` when creating the task. `ForceStatus` is a
+> temporary testing hook and will be removed when the real SageMaker workflow is wired in.
+
+#### SQS Message Contract
+On submit, the task microservice sends this JSON body to the inference queue
+(`build_event_payload` in `models/base_task.py`):
+```json
+{
+  "Id": "<task uuid>",
+  "Name": "Road Analysis Task",
+  "AccessLevel": "app",
+  "AppServiceSlug": "pavimenta2#road_sections_inference",
+  "UserSub": "<cognito sub>",
+  "Inputs": { "Type": "image_bundle", "Geography": "Pichincha", "GeographySource": "manual", "...": "..." }
+}
+```
+
 ### Task Statuses
-- `created`: Task created, awaiting files
-- `processing`: Inference in progress
+- `draft`: Task created, editable, awaiting files (initial state)
+- `queued`: Submitted; message placed on the inference queue
+- `processing`: Inference workflow is running
 - `completed`: Processing finished successfully
 - `failed`: Processing failed
+- `requesting`, `canceled`: reserved states defined in the model
 
 ### Output Data
 Results are stored in the data lake as Parquet files. Access via:
@@ -233,33 +313,3 @@ pip install -e .
 - `boto3`: AWS SDK
 - `pavimentados`: ML processing library (custom)
 - `pandas`, `pyarrow`: Data processing
-
-## Monitoring and Logging
-
-- **CloudWatch**: Logs and metrics
-- **X-Ray**: Distributed tracing
-- **Step Functions**: Workflow execution monitoring
-
-## Security
-
-- Cognito authentication
-- IAM roles with least privilege
-- S3 bucket policies
-- API Gateway throttling
-
-## Cost Optimization
-
-- Serverless architecture (pay per use)
-- Spot instances for SageMaker (if available)
-- S3 lifecycle policies for data retention
-
-## Troubleshooting
-
-### Common Issues
-- **Deployment failures**: Check IAM permissions and parameter values
-- **Inference timeouts**: Increase Lambda timeout or optimize processing
-- **S3 access errors**: Verify bucket policies and IAM roles
-- **Cognito auth issues**: Check user pool configuration
-
-### Logs
-Check CloudWatch logs for Lambda functions and Step Functions executions.

@@ -21,11 +21,19 @@ class VideoFile(InputS3ItemContent):
     Extension: Literal['mp4'] = 'mp4'
 
 
+# NOTE: `ForceStatus` on the input models is a temporary testing hook for
+# InferenceResponseWorkflow (the placeholder inference workflow). When set to
+# 'failed' the submitted task is driven down the failed branch; otherwise it
+# completes. Remove once RoadSectionInferenceWorkflow (SageMaker) is wired to the
+# inference queue.
+
+
 class ImageBundleInput(BaseModel):
     Geography: str
     GeographySource: str
     ImageBundle: ImageBundle
     Type: Literal['image_bundle']
+    ForceStatus: Optional[Literal['completed', 'failed']] = None
 
     def __init__(self, **kwargs):
         kwargs.setdefault('ImageBundle', {
@@ -41,6 +49,7 @@ class ImageBundleGpsInput(BaseModel):
     ImageBundle: ImageBundle
     GpsFile: GpsFile
     Type: Literal['image_bundle_gps']
+    ForceStatus: Optional[Literal['completed', 'failed']] = None
 
     def __init__(self, **kwargs):
         kwargs.setdefault('ImageBundle', {
@@ -59,6 +68,7 @@ class VideoGpsInput(BaseModel):
     VideoFile: VideoFile
     GpsFile: GpsFile
     Type: Literal['video_gps']
+    ForceStatus: Optional[Literal['completed', 'failed']] = None
 
     def __init__(self, **kwargs):
         kwargs.setdefault('VideoFile', {
@@ -90,8 +100,8 @@ class PavimentadosTaskOutput(BaseModel):
 
 class Task(BaseTask):
     AppServiceSlug: Literal['pavimenta2#road_sections_inference'] = 'pavimenta2#road_sections_inference'
-    Inputs: Optional[PavimentadosTaskInput]
-    Outputs: Optional[PavimentadosTaskOutput]
+    Inputs: Optional[PavimentadosTaskInput] = None
+    Outputs: Optional[PavimentadosTaskOutput] = None
 
     @property
     def s3_key_path(self):

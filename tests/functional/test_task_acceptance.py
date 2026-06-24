@@ -37,8 +37,14 @@ def dynamodb():
         dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
         table = dynamodb.create_table(
             TableName=mocks.TABLE_NAME,
-            KeySchema=[{'AttributeName': 'Pk', 'KeyType': 'HASH'}],
-            AttributeDefinitions=[{'AttributeName': 'Pk', 'AttributeType': 'S'}],
+            KeySchema=[
+                {'AttributeName': 'Pk', 'KeyType': 'HASH'},
+                {'AttributeName': 'Sk', 'KeyType': 'RANGE'},
+            ],
+            AttributeDefinitions=[
+                {'AttributeName': 'Pk', 'AttributeType': 'S'},
+                {'AttributeName': 'Sk', 'AttributeType': 'S'},
+            ],
             BillingMode='PAY_PER_REQUEST'
         )
 

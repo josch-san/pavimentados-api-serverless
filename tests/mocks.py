@@ -5,6 +5,7 @@ USER_SUB = '6b456b08-fa1d-4e24-9fbd-be990e023299'
 
 DRAFT_TASK = {
     'Pk': 'TASK#04bcdf96-db09-46cd-909a-781a3f6dcab9',
+    'Sk': 'metadata',
     'Id': '04bcdf96-db09-46cd-909a-781a3f6dcab9',
     'UserSub': '6b456b08-fa1d-4e24-9fbd-be990e023299',
     'Name': 'Analizando video',
@@ -41,6 +42,7 @@ DRAFT_TASK = {
 
 NOT_OWNED_DRAFT_TASK = {
     'Pk': 'TASK#145fe967-e83a-4f66-821c-b883c9afebca',
+    'Sk': 'metadata',
     'Id': '145fe967-e83a-4f66-821c-b883c9afebca',
     'UserSub': 'cb3923d5-7fb9-4363-8eb9-43dbf0a1185c',
     'Name': 'Analizando video',
@@ -77,6 +79,7 @@ NOT_OWNED_DRAFT_TASK = {
 
 DRAFT_TASK_TO_SUBMIT = {
     'Pk': 'TASK#523dfef7-878d-4fca-bbe8-1b3a237e47a4',
+    'Sk': 'metadata',
     'Id': '523dfef7-878d-4fca-bbe8-1b3a237e47a4',
     'UserSub': '6b456b08-fa1d-4e24-9fbd-be990e023299',
     'Name': 'Road Section images and gps',
@@ -125,6 +128,7 @@ DRAFT_TASK_TO_SUBMIT = {
 
 COMPLETED_TASK = {
     'Pk': 'TASK#3bd2c23f-efba-40ec-b969-d490d5fe33bd',
+    'Sk': 'metadata',
     'Id': '3bd2c23f-efba-40ec-b969-d490d5fe33bd',
     'UserSub': '6b456b08-fa1d-4e24-9fbd-be990e023299',
     'Name': 'Analizando video',

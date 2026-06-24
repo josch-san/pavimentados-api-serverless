@@ -27,16 +27,16 @@ class AccessLevelEnum(str, Enum):
 class BaseTask(BaseModel):
     Id: UUID = Field(default_factory=uuid4)
     Name: str
-    Description: Optional[str]
+    Description: Optional[str] = None
     UserSub: UUID
     CreatedAt: datetime = Field(default_factory=datetime.utcnow)
     ModifiedAt: datetime = Field(default_factory=datetime.utcnow)
     TaskStatus: TaskStatusEnum = TaskStatusEnum.DRAFT
     AccessLevel: AccessLevelEnum = AccessLevelEnum.APP
     AppServiceSlug: str
-    Inputs: Optional[dict]
-    Outputs: Optional[dict]
-    OutputMessage: Optional[str]
+    Inputs: Optional[dict] = None
+    Outputs: Optional[dict] = None
+    OutputMessage: Optional[str] = None
 
     class Config:
         extra = 'ignore'
@@ -55,7 +55,7 @@ class BaseTask(BaseModel):
     def build_dynamodb_key(task_id: str) -> dict:
         return {
             'Pk': 'TASK#{}'.format(task_id),
-            # 'Sk': 'metadata'
+            'Sk': 'metadata',
         }
 
     @property

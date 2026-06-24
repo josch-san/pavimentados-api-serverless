@@ -218,6 +218,63 @@ Resources:
                 Action: iam:PassRole
                 Resource: !GetAtt SageMakerRole.Arn
 
+  InferenceResponseStatesRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /service-role/
+      RoleName: !Sub
+        - 'PavimentadosInferenceResponseStatesRole${suffix}'
+        - suffix: !FindInMap [ModeMap, !Ref Mode, ModeSuffix]
+      Description: Pavimentados inference response states service role.
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: states.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: pavimentados-inference-response-states-policy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              -
+                Effect: Allow
+                Action: dynamodb:UpdateItem
+                Resource: !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${InfraTableName}'
+
+  InferenceQueuePipeRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /service-role/
+      RoleName: !Sub
+        - 'PavimentadosInferenceQueuePipeRole${suffix}'
+        - suffix: !FindInMap [ModeMap, !Ref Mode, ModeSuffix]
+      Description: Pavimentados inference queue EventBridge Pipe service role.
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: pipes.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: pavimentados-inference-queue-pipe-policy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              -
+                Effect: Allow
+                Action:
+                  - sqs:ReceiveMessage
+                  - sqs:DeleteMessage
+                  - sqs:GetQueueAttributes
+                Resource: !GetAtt InferenceQueue.Arn
+              -
+                Effect: Allow
+                Action: states:StartExecution
+                Resource: !GetAtt InferenceResponseWorkflow.Arn
+
   SageMakerRole:
     Type: AWS::IAM::Role
     Properties:
@@ -426,10 +483,11 @@ Resources:
       GenerateSecret: false
       EnableTokenRevocation: true
       PreventUserExistenceErrors: ENABLED
+      RefreshTokenValidity: 30
       ExplicitAuthFlows:
         - ALLOW_REFRESH_TOKEN_AUTH
         - ALLOW_USER_SRP_AUTH
-      RefreshTokenValidity: 30
+        - ALLOW_USER_PASSWORD_AUTH
       SupportedIdentityProviders: [ COGNITO ]
       CallbackURLs: [ https://localhost ]
       LogoutURLs: [ https://localhost ]
@@ -447,6 +505,23 @@ Resources:
       QueueName: !Sub
         - 'pavimentados-inference-queue${suffix}'
         - suffix: !FindInMap [ModeMap, !Ref Mode, ModeSuffix]
+
+  InferenceQueuePipe:
+    Type: AWS::Pipes::Pipe
+    Properties:
+      Name: !Sub
+        - 'pavimentados-inference-queue-pipe${suffix}'
+        - suffix: !FindInMap [ModeMap, !Ref Mode, ModeSuffix]
+      Description: Routes submitted task messages from the inference queue to the inference response workflow.
+      RoleArn: !GetAtt InferenceQueuePipeRole.Arn
+      Source: !GetAtt InferenceQueue.Arn
+      SourceParameters:
+        SqsQueueParameters:
+          BatchSize: 1
+      Target: !GetAtt InferenceResponseWorkflow.Arn
+      TargetParameters:
+        StepFunctionStateMachineParameters:
+          InvocationType: FIRE_AND_FORGET
 
   TaskMicroserviceFunction:
     Type: AWS::Serverless::Function
@@ -539,6 +614,24 @@ Resources:
         IsGpuEnabled: !If [IsGpuEnabled, 'true', 'false']
         Region: !Ref AWS::Region
 
+  # Temporary placeholder workflow triggered by the inference queue Pipe. It writes
+  # a simulated terminal status to the task and will be superseded by
+  # RoadSectionInferenceWorkflow once the SageMaker pipeline is wired to the queue.
+  InferenceResponseWorkflow:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      Role: !GetAtt InferenceResponseStatesRole.Arn
+      Name: !Sub
+        - 'pavimentados-inference-response-workflow${suffix}'
+        - suffix: !FindInMap [ModeMap, !Ref Mode, ModeSuffix]
+      Definition:
+        Fn::Transform:
+          Name: AWS::Include
+          Parameters:
+            Location: src/stepfunctions/InferenceResponseWorkflow.yaml
+      DefinitionSubstitutions:
+        InfraTableName: !Ref InfraTableName
+
   # Datalake Resources
 
   PavimentadosWorkGroup:
@@ -555,9 +648,6 @@ Resources:
         EnforceWorkGroupConfiguration: true
         ResultConfiguration:
           OutputLocation: !Sub 's3://${DatalakeBucketName}/athena-query-results/pavimenta2/'
-      WorkGroupConfigurationUpdates:
-        PublishCloudWatchMetricsEnabled: false
-        EnforceWorkGroupConfiguration: true
 
   PavimentadosDatabase:
     Type: AWS::Glue::Database
@@ -933,3 +1023,9 @@ Outputs:
     Value: !Sub
       - 'https://${PavimentadosApi}.execute-api.${AWS::Region}.amazonaws.com/${apiStage}'
       - apiStage: !FindInMap [ModeMap, !Ref Mode, ApiStage]
+  InferenceQueueUrl:
+    Description: Inference queue url
+    Value: !GetAtt InferenceQueue.QueueUrl
+  InferenceResponseWorkflowArn:
+    Description: Inference response (placeholder) state machine ARN
+    Value: !GetAtt InferenceResponseWorkflow.Arn

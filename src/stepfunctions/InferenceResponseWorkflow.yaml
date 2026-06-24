@@ -1,0 +1,112 @@
+Comment: >-
+  Inference response workflow. Consumes a task message delivered by EventBridge
+  Pipes from the inference queue and writes a terminal status back to the task in
+  DynamoDB, mirroring RoadSectionInferenceWorkflow's status transitions.
+  NOTE: This is a temporary placeholder that returns a simulated result without
+  running SageMaker. It will be replaced by RoadSectionInferenceWorkflow once the
+  real inference pipeline is wired to the queue. By default a task is marked
+  'completed'; set Inputs.ForceStatus = 'failed' on submit to exercise the failed path.
+StartAt: ParseInput
+
+States:
+  ParseInput:
+    Type: Pass
+    Comment: >-
+      EventBridge Pipes delivers SQS records as an array; the task payload is a
+      JSON string in the message body. Parse it into $.Task.
+    Parameters:
+      Task.$: States.StringToJson($[0].body)
+    Next: SetProcessingStatus
+
+  SetProcessingStatus:
+    Type: Task
+    Resource: arn:aws:states:::dynamodb:updateItem
+    Comment: Update task status to processing.
+    Parameters:
+      TableName: ${InfraTableName}
+      Key:
+        Pk:
+          S.$: States.Format('TASK#{}', $.Task.Id)
+        Sk:
+          S: metadata
+      UpdateExpression: SET TaskStatus = :new_status, ModifiedAt = :modified_at, OutputMessage = :no_message, Outputs = :no_outputs
+      ExpressionAttributeValues:
+        ':new_status':
+          S: processing
+        ':modified_at':
+          S.$: $$.State.EnteredTime
+        ':no_message':
+          S: ''
+        ':no_outputs':
+          M: {}
+    ResultPath: $.LastStatus
+    Next: ProcessingDelay
+
+  ProcessingDelay:
+    Type: Wait
+    Comment: Brief delay so the processing -> terminal status transition is observable.
+    Seconds: 5
+    Next: EvaluateResult
+
+  EvaluateResult:
+    Type: Choice
+    Comment: Resolve the task outcome. Defaults to completed unless forced to fail.
+    Choices:
+      - And:
+          - Variable: $.Task.Inputs.ForceStatus
+            IsPresent: true
+          - Variable: $.Task.Inputs.ForceStatus
+            StringEquals: failed
+        Next: SetFailedStatus
+    Default: SetCompletedStatus
+
+  SetCompletedStatus:
+    Type: Task
+    Resource: arn:aws:states:::dynamodb:updateItem
+    Comment: Update task status to completed with output references.
+    Parameters:
+      TableName: ${InfraTableName}
+      Key:
+        Pk:
+          S.$: States.Format('TASK#{}', $.Task.Id)
+        Sk:
+          S: metadata
+      UpdateExpression: SET TaskStatus = :new_status, ModifiedAt = :modified_at, OutputMessage = :success_message, Outputs = :outputs
+      ExpressionAttributeValues:
+        ':new_status':
+          S: completed
+        ':modified_at':
+          S.$: $$.State.EnteredTime
+        ':success_message':
+          S: Successful processing
+        ':outputs':
+          M:
+            ResultLocation:
+              S: 's3://placeholder/pavimenta2/sections/result.parquet'
+    ResultPath: $.LastStatus
+    End: True
+
+  SetFailedStatus:
+    Type: Task
+    Resource: arn:aws:states:::dynamodb:updateItem
+    Comment: Update task status to failed with an error message.
+    Parameters:
+      TableName: ${InfraTableName}
+      Key:
+        Pk:
+          S.$: States.Format('TASK#{}', $.Task.Id)
+        Sk:
+          S: metadata
+      UpdateExpression: SET TaskStatus = :new_status, ModifiedAt = :modified_at, OutputMessage = :error_message
+      ExpressionAttributeValues:
+        ':new_status':
+          S: failed
+        ':modified_at':
+          S.$: $$.State.EnteredTime
+        ':error_message':
+          S: 'Processing failed (forced by Inputs.ForceStatus = failed)'
+    ResultPath: $.LastStatus
+    Next: FailExecution
+
+  FailExecution:
+    Type: Fail
