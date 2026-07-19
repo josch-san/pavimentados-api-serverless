@@ -23,6 +23,8 @@ States:
       Key:
         Pk:
           S.$: States.Format('TASK#{}', $$.Execution.Input.Id)
+        Sk:
+          S: metadata
       UpdateExpression: SET TaskStatus = :new_status, ModifiedAt = :modified_at, OutputMessage = :no_message, Outputs = :no_outputs
       ExpressionAttributeValues:
         ':new_status':
@@ -100,6 +102,8 @@ States:
       Key:
         Pk:
           S.$: States.Format('TASK#{}', $$.Execution.Input.Id)
+        Sk:
+          S: metadata
       UpdateExpression: SET TaskStatus = :new_status, ModifiedAt = :modified_at, OutputMessage = :success_message, Outputs = :outputs
       ExpressionAttributeValues:
         ':new_status':
@@ -122,6 +126,8 @@ States:
       Key:
         Pk:
           S.$: States.Format('TASK#{}', $$.Execution.Input.Id)
+        Sk:
+          S: metadata
       UpdateExpression: SET TaskStatus = :new_status, ModifiedAt = :modified_at, OutputMessage = :error_message
       ExpressionAttributeValues:
         ':new_status':

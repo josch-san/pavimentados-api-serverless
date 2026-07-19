@@ -190,6 +190,126 @@ paths:
               schema:
                 $ref: '#/components/schemas/Task'
 
+  /taskTypes:
+    get:
+      security:
+        - user-pool-authorizer: []
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        passthroughBehavior: when_no_match
+        credentials:
+          Fn::GetAtt: ApiGatewayRole.Arn
+        uri:
+          Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${TaskMicroserviceFunction.Arn}/invocations
+      responses:
+        '200':
+          description: Success response
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /admin/datasets:
+    get:
+      security:
+        - user-pool-authorizer: []
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        passthroughBehavior: when_no_match
+        credentials:
+          Fn::GetAtt: ApiGatewayRole.Arn
+        uri:
+          Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${DatasetMicroserviceFunction.Arn}/invocations
+      x-amazon-apigateway-request-validator: params-only
+      responses:
+        '200':
+          description: Success response
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /admin/datasets/{datasetId}:
+    get:
+      security:
+        - user-pool-authorizer: []
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        passthroughBehavior: when_no_match
+        credentials:
+          Fn::GetAtt: ApiGatewayRole.Arn
+        uri:
+          Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${DatasetMicroserviceFunction.Arn}/invocations
+      x-amazon-apigateway-request-validator: params-only
+      parameters:
+        - name: datasetId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success response
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /admin/datasets/{datasetId}/listObjects:
+    get:
+      security:
+        - user-pool-authorizer: []
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        passthroughBehavior: when_no_match
+        credentials:
+          Fn::GetAtt: ApiGatewayRole.Arn
+        uri:
+          Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${DatasetMicroserviceFunction.Arn}/invocations
+      x-amazon-apigateway-request-validator: params-only
+      parameters:
+        - name: datasetId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success response
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /public/datasets/{datasetSlug}/signedUrl:
+    get:
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        passthroughBehavior: when_no_match
+        credentials:
+          Fn::GetAtt: ApiGatewayRole.Arn
+        uri:
+          Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${DatasetMicroserviceFunction.Arn}/invocations
+      x-amazon-apigateway-request-validator: params-only
+      parameters:
+        - name: datasetSlug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success response
+          content:
+            application/json:
+              schema:
+                type: object
+
   # /tasks/{taskId}/cancel:
   #   post:
   #     security:

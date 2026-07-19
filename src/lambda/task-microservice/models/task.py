@@ -14,17 +14,26 @@ class GpsFile(InputS3ItemContent):
 
 
 class ImageBundle(InputS3ArrayContent):
-    Extension: str = Field('zip', const=True)
+    Extension: Literal['zip'] = 'zip'
 
 
 class VideoFile(InputS3ItemContent):
-    Extension: str = Field('mp4', const=True)
+    Extension: Literal['mp4'] = 'mp4'
+
+
+# NOTE: `ForceStatus` on the input models is a temporary testing hook for
+# InferenceResponseWorkflow (the placeholder inference workflow). When set to
+# 'failed' the submitted task is driven down the failed branch; otherwise it
+# completes. Remove once RoadSectionInferenceWorkflow (SageMaker) is wired to the
+# inference queue.
 
 
 class ImageBundleInput(BaseModel):
     Geography: str
+    GeographySource: str
     ImageBundle: ImageBundle
     Type: Literal['image_bundle']
+    ForceStatus: Optional[Literal['completed', 'failed']] = None
 
     def __init__(self, **kwargs):
         kwargs.setdefault('ImageBundle', {
@@ -36,9 +45,11 @@ class ImageBundleInput(BaseModel):
 
 class ImageBundleGpsInput(BaseModel):
     Geography: str
+    GeographySource: str
     ImageBundle: ImageBundle
     GpsFile: GpsFile
     Type: Literal['image_bundle_gps']
+    ForceStatus: Optional[Literal['completed', 'failed']] = None
 
     def __init__(self, **kwargs):
         kwargs.setdefault('ImageBundle', {
@@ -53,9 +64,11 @@ class ImageBundleGpsInput(BaseModel):
 
 class VideoGpsInput(BaseModel):
     Geography: str
+    GeographySource: str
     VideoFile: VideoFile
     GpsFile: GpsFile
     Type: Literal['video_gps']
+    ForceStatus: Optional[Literal['completed', 'failed']] = None
 
     def __init__(self, **kwargs):
         kwargs.setdefault('VideoFile', {
@@ -86,9 +99,9 @@ class PavimentadosTaskOutput(BaseModel):
 
 
 class Task(BaseTask):
-    AppServiceSlug: str = Field('pavimenta2#road_sections_inference', const=True)
-    Inputs: Optional[PavimentadosTaskInput]
-    Outputs: Optional[PavimentadosTaskOutput]
+    AppServiceSlug: Literal['pavimenta2#road_sections_inference'] = 'pavimenta2#road_sections_inference'
+    Inputs: Optional[PavimentadosTaskInput] = None
+    Outputs: Optional[PavimentadosTaskOutput] = None
 
     @property
     def s3_key_path(self):
@@ -143,7 +156,7 @@ class Task(BaseTask):
 
     def update(self, payload: dict) -> None:
         updateable_fields = ['Name', 'Description', 'AccessLevel']
-        updateable_inputs = ['Geography']
+        updateable_inputs = ['Geography', 'GeographySource']
 
         updated_fields = []
         for key, value in payload.items():

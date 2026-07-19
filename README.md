@@ -1,224 +1,315 @@
-# Pavimentados AWS Serverless
+# Pavimentados API Serverless
 
-The <span style="color:#3EACAD">template</span> is a standardized, but flexible *project* and *documentation* structure of folders and files for sharing your data science work.
+A serverless API for road pavement analysis using machine learning inference. The system processes road images and videos to detect pavement conditions, cracks, signals, and other infrastructure features.
 
-Inspired by [literate programming](http://literateprogramming.com) and [Cookiecutter Data Science](https://drivendata.github.io/cookiecutter-data-science/), maintained by the [World Bank Development Data Group](https://www.worldbank.org/en/about/unit/unit-dec#2) and built as [GitHub template repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/creating-a-repository-from-a-template), the <span style="color:#3EACAD">template</span> contains:
+## Overview
 
-- **README**, **CODE_OF_CONDUCT**, **CONTRIBUTING**
-    > README files are important and often neglected. The files should inform anyone about about the first steps to use, learn and contribute to your project.
+This project implements a serverless architecture on AWS for processing road pavement data. It uses AWS Lambda, API Gateway, Step Functions, SageMaker, and other services to provide a scalable API for submitting analysis tasks and retrieving results.
 
-- **LICENSE**
-  > The LICENSE is a document that  determines what others can and cannot do with contents of the repository. If no license is present, no one has permission to use and/or modify your code.
+## Architecture
 
-- [Issues and Pull Requests GitHub templates](https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/configuring-issue-templates-for-your-repository)
-    > GitHub allows to customize how issues and pull requests are presented to the public. Custom templates encourage collaboration and maintainability.
+The system consists of the following main components:
 
-- **docs/**
+### API Layer
+- **API Gateway**: REST API endpoint with Cognito authentication
+- **Task Microservice (Lambda)**: Main API handler for task management
 
-    > Documentation is often never priotized until last minute. The <span style="color:#3EACAD">template</span> aims to revert the malpractice by setting up the documentation as an integral part of the code repository. With the power of [Jupyter Book](https://jupyterbook.org), data practioners have a way to share [Jupyter notebooks](https://jupyter.org) on [GitHub Pages](https://pages.github.com) in a standardized and effortless way.
+### Processing Pipeline
+- **Inference Queue (SQS)**: Receives a message for every submitted task
+- **EventBridge Pipe**: Routes queue messages to the inference response workflow (no glue code)
+- **Inference Response Workflow (Step Functions)**: Consumes the message and writes a terminal status back to the task. **This is currently a placeholder** (see [Task Processing Flow](#task-processing-flow)) — it returns a simulated result without running SageMaker, and will be replaced by the SageMaker workflow below once that pipeline is wired to the queue.
+- **Road Section Inference Workflow (Step Functions)**: The real inference orchestration (not yet wired to the queue)
+- **Build Payload (Lambda)**: Prepares input data for SageMaker
+- **SageMaker Processing Job**: Runs ML inference in containers (CPU/GPU)
+- **Discover Outputs (Lambda)**: Catalogs output files
 
-- **data/**
-    > Placeholder folder for data. Data is immutable. By default, the data folder is present but ignored from version control, in order to prevent files of being mistakenly versioned in the code repository.
+### Data Storage
+- **DynamoDB**: Task metadata and status
+- **S3**: Input files (attachments), output results (datalake), artifacts (models)
+- **Glue Catalog**: Metadata for parquet files in datalake
 
-- **src/**
-    > Placeholder folder for source code. If Python, it is recommended the package is made pip-installable.
+### Container Registry
+- **ECR**: Docker images for CPU and GPU inference containers
 
-- **notebooks/**
-    > Placeholder folder for [Jupyter notebooks](https://jupyter.org). Markdown files and Jupyter notebooks can be added to `docs/_toc.yml` (Table of Contents) to compose the *documentation*.
+## Key Classes and Components
 
-```{important}
-Admittedly, even the best of the templates would never be perfect; the <span style="color:#3EACAD">template</span> aims to encourage teams to start thinking and assimilate **best practices**, **collaborative coding**, **documentation**​, **reproducibility​** as an integral part of the project. *In a standardized way*.
+### Lambda Functions
 
-In this spirit, in case you have feedback, please [open an issue](https://github.com/worldbank/template/issues) or [submit a pull request](https://github.com/worldbank/template/pulls) to share your ideas and suggestions.
+#### Task Microservice (`src/lambda/task-microservice/`)
+- **Main Handler** (`app.py`): APIGatewayRestResolver with router for `/tasks`
+- **Controller** (`controllers/task_controller.py`): REST endpoints
+  - `GET /tasks`: List tasks
+  - `POST /tasks`: Create task
+  - `GET /tasks/{taskId}`: Get task details
+  - `PUT /tasks/{taskId}`: Update task
+  - `POST /tasks/{taskId}/generateAttachmentUploadUrl`: Generate S3 upload URL
+  - `POST /tasks/{taskId}/submit`: Submit task for processing
+  - `GET /taskTypes`: List available task types
+- **Services**:
+  - `TaskService`: CRUD operations on tasks
+  - `QueueService`: Send messages to SQS
+  - `StorageService`: Generate presigned S3 URLs
+- **Models**: Task, S3Object data structures
+
+#### Build Payload (`src/lambda/build-payload/`)
+- Uses `InferenceBuilder` to prepare SageMaker job parameters from task inputs
+
+#### Discover Outputs (`src/lambda/discover-outputs/`)
+- Lists S3 output files and formats for DynamoDB storage
+
+### SageMaker Components
+
+#### Inference Container (`src/sagemaker/road-section-inference/`)
+- **Entrypoint** (`entrypoint.py`): Main processing script
+- **Container Code** (`sagemaker_container.py`): Argument parsing and utilities
+- Supports input types:
+  - `video_gps`: Video file with GPS data
+  - `image_bundle_gps`: Image bundles with GPS
+  - `image_bundle`: Image bundles only
+- Uses `pavimentados` library for ML processing
+- Outputs: sections, signals_detected, failures_detected, detections_over_photogram
+
+#### ECR Images
+- CPU version: `src/ecr/road-section-inference-cpu/Dockerfile`
+- GPU version: `src/ecr/road-section-inference-gpu/Dockerfile`
+
+### Step Functions Workflows
+
+#### Road Section Inference Workflow (`src/stepfunctions/RoadSectionInferenceWorkflow.yaml`)
+The real ML inference orchestration. **Not currently triggered** — it will replace the
+placeholder workflow below once wired to the inference queue.
+States:
+1. **BuildPayload**: Prepare SageMaker parameters
+2. **SetProcessingStatus**: Update task status
+3. **InferenceRoadSection**: Run SageMaker processing job
+4. **DiscoverOutputs**: Catalog output files
+5. **SetCompletedStatus**: Mark task complete
+Error handling: **SetFailedStatus** on failures
+
+#### Inference Response Workflow (`src/stepfunctions/InferenceResponseWorkflow.yaml`)
+> **Placeholder.** This workflow stands in for the SageMaker pipeline so the end-to-end
+> task lifecycle works today. It does **not** run any inference — it simply writes a
+> terminal status back to the task, mirroring the real workflow's DynamoDB transitions.
+> When the SageMaker pipeline is ready, the EventBridge Pipe target is repointed at
+> `RoadSectionInferenceWorkflow` and this workflow (plus the `ForceStatus` testing hook)
+> is removed.
+
+It is invoked by the **EventBridge Pipe** for each message on the inference queue.
+States:
+1. **ParseInput**: Parse the task payload from the SQS message body
+2. **SetProcessingStatus**: Update task status to `processing`
+3. **ProcessingDelay**: Brief wait so the status transition is observable
+4. **EvaluateResult** (Choice): `failed` if `Inputs.ForceStatus == "failed"`, otherwise `completed`
+5. **SetCompletedStatus** / **SetFailedStatus**: Write the terminal status and message
+
+### Data Lake
+- **Glue Database**: `pavimentados{env}` (e.g., `pavimentados_dev`)
+- **Tables**:
+  - `sections`: Road section analysis results
+  - `signals_detected`: Detected traffic signals
+  - `failures_detected`: Pavement failures
+  - `detections_over_photogram`: Detailed detections
+- Partitioned by: user, geography, task
+
+## Deployment
+
+The project uses AWS SAM for deployment.
+
+### Prerequisites
+- AWS CLI configured
+- SAM CLI installed
+- Docker (for building containers)
+
+### Build and Deploy
+
+1. **Build the application**:
+   ```bash
+   sam build
+   ```
+
+2. **Deploy to development**:
+   ```bash
+   sam deploy --config-env default
+   ```
+
+3. **Deploy to production**:
+   ```bash
+   sam deploy --config-env prod
+   ```
+
+### Parameters
+The deployment requires several parameters defined in `samconfig.toml`:
+- `UserPoolId`: Cognito user pool ID
+- `InfraTableName`: DynamoDB table name
+- `AttachmentsBucketName`: S3 bucket for inputs
+- `DatalakeBucketName`: S3 bucket for outputs
+- `ArtifactsBucketName`: S3 bucket for models
+- `ProcessorType`: `cpu` or `gpu`
+- `Mode`: `dev`, `test`, or `prod`
+
+## Testing
+
+### Unit Tests
+Run unit tests with pytest:
+```bash
+pytest tests/unit/
 ```
 
-## Usage
-
-### Getting Started
-
-```{margin} ✨ Can't see the <span style="color:#3EACAD">template</span> ?
-Please ensure you are logged in on [GitHub](https://github.com) and have permissions to create a repository.
+### Functional Tests
+Run functional tests:
+```bash
+pytest tests/functional/
 ```
 
-1. **Create new repository from template**
+### Local API Testing
+Test the API locally using SAM Local:
 
-    The <span style="color:#3EACAD">template</span> is a [GitHub template repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/creating-a-repository-from-a-template); in other words, you can generate a new GitHub repository with the same files and folders to use as the starting point for your project.
+1. **Start local API**:
+   ```bash
+   sam local start-api
+   ```
 
-    > 🌟 [Create new repository from **template**](https://github.com/worldbank/template/generate)
+2. **Test endpoints** (requires authentication setup)
 
-    ```{figure} docs/images/github-template.png
-    ---
-    ---
-    ```
+### AWS Testing
+After deployment, test against the deployed API URL (output from `sam deploy`).
 
-    Now, give your repository a name, choose the **visibility** (Public or Private) and click **Create repository from template**.
+### Postman Collection
+A ready-to-use collection lives at
+[`postman/Pavimentados-Tasks.postman_collection.json`](postman/Pavimentados-Tasks.postman_collection.json).
+It exercises the full `/tasks` lifecycle plus `/taskTypes`.
 
-    ```{figure} docs/images/github-template-create.png
-    ---
-    ---
-    ```
+1. **Import**: in Postman, *Import* → select the JSON file.
+2. **Set collection variables** (collection → *Variables* tab):
+   - `baseUrl`: your deploy URL, e.g. `https://xxxx.execute-api.us-east-1.amazonaws.com/dev` (the `ApiUrl` stack output).
+   - `accessToken`: a Cognito **IdToken** (no `Bearer ` prefix). The collection sends it as a bearer token.
+   - `taskId`: leave empty — **Create task** captures it automatically into this variable.
+3. **Run in order**: List tasks → Create task → Get task → Update task → Generate attachment upload URL → Submit task → List tasks again. After *Submit task*, re-run *Get task by id* a few seconds later to watch the status move to `completed`.
+4. **To demo the failed path**: edit the *Create task* body and add `"ForceStatus": "failed"` inside `Inputs`, then run Create → Submit → Get; the task ends as `failed`.
 
-    *Voilà!* The repository has been created with the same files and folders of the <span style="color:#3EACAD">template</span>.
+## API Usage
 
-    ```{seealso}
-    For additional information, see the [GitHub documentation](https://docs.github.com/en/repositories/creating-and-managing-repositories/creating-a-repository-from-a-template)
-    ```
+### Authentication
+The API uses Cognito User Pool authentication. Include the Authorization header with a valid JWT token.
 
-2. **Enable [GitHub Actions](https://github.com/features/actions) and [GitHub Pages](https://pages.github.com)**
+### Task Lifecycle
 
-    After creating the repository from the <span style="color:#3EACAD">template</span>, you will have to enable [GitHub Actions](https://github.com/features/actions) and [GitHub Pages](https://pages.github.com) to allow the [Jupyter Book](https://jupyterbook.org) to be built and published.
+1. **Create Task**: `Inputs.Type` selects the input shape — one of `image_bundle`,
+   `image_bundle_gps`, or `video_gps`. All shapes require `Geography` and `GeographySource`.
+   ```http
+   POST /tasks
+   {
+     "Name": "Road Analysis Task",
+     "Description": "Analysis of highway section",
+     "Inputs": {
+       "Type": "image_bundle",
+       "Geography": "Pichincha",
+       "GeographySource": "manual"
+     }
+   }
+   ```
 
-    To activate the workflow, please enable [GitHub Actions](https://github.com/features/actions) by going to the repository's settings (`Settings > Actions > General`), and selecting **read and write permissions** as shown below.
+2. **Upload Files**: `FieldName` is the attachment field of the chosen input type
+   (`ImageBundle`, `VideoFile`, or `GpsFile`). `ArrayLength` applies to array fields
+   like `ImageBundle`.
+   ```http
+   POST /tasks/{taskId}/generateAttachmentUploadUrl
+   {
+     "FieldName": "ImageBundle",
+     "Extension": "zip",
+     "ArrayLength": 1
+   }
+   ```
+   Use the returned presigned URL(s) to upload the file(s).
 
-    ```{figure} docs/images/github-template-action-enable.png
-      ---
-      ---
-    ```
+3. **Submit Task** (only allowed from `draft`):
+   ```http
+   POST /tasks/{taskId}/submit
+   ```
+   This sets the task to `queued` and enqueues a message on the inference queue.
 
-    To publish, please enable [GitHub Pages](https://pages.github.com) by going to the repository's settings (`Settings > Pages`), and selecting to deploy from the `gh-pages` branch.
+4. **Check Status** (poll until `completed` or `failed`):
+   ```http
+   GET /tasks/{taskId}
+   ```
 
-    ```{figure} docs/images/github-template-pages.png
-    ---
-    ---
-    ```
+5. **List Tasks**:
+   ```http
+   GET /tasks
+   ```
 
-    On the next push to `main`, the [Jupyter Book](https://jupyterbook.org) will be automatically built and published. You can check the progress on the  `Actions` tab.
-
-    ```{figure} docs/images/github-template-action.png
-    ---
-    ---
-    ```
-
-    ```{caution}
-    The *documentation* can be published from either *public* and *private* repositories. If publishing private content, please remember to carefully select the content to be made public and to abide by your organization's Data Privacy Policy.
-    ```
-
-3. **Update configurations**
-
-    The <span style="color:#3EACAD">template</span> comes with a default `docs/_config.yml` Jupyter Book configuration file. Remember to update it to reflect your project's name and details.
-
-      ```
-      repository:
-      url: https://github.com/worldbank/template
-      branch: main
-      ```
-
-   ```{seealso}
-    [Jupyter Book Configuration Reference](https://jupyterbook.org/en/stable/customize/config.html)
-    ```
-
-4. **Review and update README files**
-
-    The <span style="color:#3EACAD">template</span> comes with README files - including [this **README**](README) - that should provide anyone with the information about the first steps to use, learn and contribute to your project. Please **replace** and/or **repurpose** the files with instructions and detailed information about your project.
-
-    > - **CODE_OF_CONDUCT**
-    > - **CONTRIBUTING**
-    > - **README**
-    > - Issues and Pull Requests GitHub templates
-
-    ```{seealso}
-    [Awesome README](https://github.com/matiassingers/awesome-readme)
-    ```
-
-5. **Choose a license**
-
-    The <span style="color:#3EACAD">template</span> is licensed under the [**World Bank Master Community License Agreement**](LICENSE). A LICENSE is the document that guarantees the repository can be shared, modified and receive contributions. Otherwise, if no license is present, all rights are reserved.
-
-<hr>
-
-**Congratulations!** You just created a beautiful home for your project. To access your project page, use (and share) the link as shown below.
-
-> 🌟 `https://<your-github-username>.github.io/<your-project-name>`
-
-For example, see this <span style="color:#3EACAD">template</span> as a live demo.
-
-> 🌟 [worldbank.github.io/template](http://worldbank.github.io/template) (Live Demo)
-
-### Adding Content
-
-The <span style="color:#3EACAD">template</span> is created as a [Jupyter Book](https://jupyterbook.org/intro.html) - an open-source project to build beautiful, publication-quality books and documents from computational content. Let's see below how to add, execute and publish new content for your project.
-
-#### Table of Contents
-
-When ready to publish the *documentation* on [GitHub Pages](https://pages.github.com/), all you need to do is edit the [table of contents](#table-of-contents) and add and/or update content you would like to display. [Jupyter Book](https://jupyterbook.org) supports content written as [Markdown](https://daringfireball.net/projects/markdown/), [Jupyter](https://jupyter.org) notebooks and [reStructuredText](https://docutils.sourceforge.io/rst.html) files and the `docs/_toc.yml` file controls the [table of contents](#table-of-contents) of your book.
-
-The <span style="color:#3EACAD">template</span> comes with the [table of contents](#table-of-contents) below as an example.
+### Task Processing Flow
 
 ```
-
-format: jb-book
-root: README
-
-parts:
-
-- caption: Documentation
-    numbered: True
-    chapters:
-  - file: notebooks/world-bank-api.ipynb
-- caption: Additional Resources
-    chapters:
-  - url: <https://datapartnership.org>
-        title: Development Data Partnership
-  - url: <https://www.worldbank.org/en/about/unit/unit-dec>
-        title: World Bank DEC
-  - url: <https://www.worldbank.org/en/research/dime>
-        title: World Bank DIME
-
+POST /submit ──> set status=queued ──> SQS (inference queue)
+                                          │
+                                  EventBridge Pipe (batch size 1)
+                                          │
+                                          ▼
+                            Inference Response Workflow (Step Functions, placeholder)
+                                          │
+                          set status=processing ─> (delay) ─> evaluate
+                                          │
+                         ┌────────────────┴────────────────┐
+                         ▼                                 ▼
+                  status=completed                    status=failed
 ```
 
-```{seealso}
-[Jupyter Book Structure and organize content](https://jupyterbook.org/en/stable/basics/organize.html)
+> **Placeholder behaviour:** the inference response workflow does not run SageMaker.
+> By default a submitted task ends as `completed`. To exercise the failed path, set
+> `"ForceStatus": "failed"` inside `Inputs` when creating the task. `ForceStatus` is a
+> temporary testing hook and will be removed when the real SageMaker workflow is wired in.
+
+#### SQS Message Contract
+On submit, the task microservice sends this JSON body to the inference queue
+(`build_event_payload` in `models/base_task.py`):
+```json
+{
+  "Id": "<task uuid>",
+  "Name": "Road Analysis Task",
+  "AccessLevel": "app",
+  "AppServiceSlug": "pavimenta2#road_sections_inference",
+  "UserSub": "<cognito sub>",
+  "Inputs": { "Type": "image_bundle", "Geography": "Pichincha", "GeographySource": "manual", "...": "..." }
+}
 ```
 
-#### Dependencies
+### Task Statuses
+- `draft`: Task created, editable, awaiting files (initial state)
+- `queued`: Submitted; message placed on the inference queue
+- `processing`: Inference workflow is running
+- `completed`: Processing finished successfully
+- `failed`: Processing failed
+- `requesting`, `canceled`: reserved states defined in the model
 
-The next step is ensure your code is maintainable, realiable and reproducible by including
-any dependencies and requirements, such as packages, configurations, secrets (template) and addtional instructions.
+### Output Data
+Results are stored in the data lake as Parquet files. Access via:
+- Athena queries
+- Direct S3 access
+- Task `Outputs` field contains file references
 
-The <span style="color:#3EACAD">template</span> suggests to use [conda](https://docs.conda.io/) (or [mamba](https://mamba.readthedocs.io/en/latest/)) as environment manager and, as [conventional](https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html), the environment is controlled by the `environment.yml` file.
+## Development
 
-The `environment.yml` file is where you specify any packages available on the [Anaconda repository](https://anaconda.org) as well as from the Anaconda Cloud (including [conda-forge](https://conda-forge.org)) to install for your project. Ensure to include the pinned version of packages required by your project (including by Jupyter notebooks).
+### Environment Setup
+```bash
+# Create conda environment
+conda env create -f environment.yml
+conda activate pavimentados
 
-```
-channels:
-  - conda-forge
-  - defaults
-dependencies:
-  - python=3.9
-  - bokeh=2.4.3
-  - pandas=1.4.3
-  - pip:
-    - requests==2.28.1
-```
-
-To (re)create the environment on your installation of [conda](https://conda.io) via [anaconda](https://docs.anaconda.com/anaconda/install/), [miniconda](https://docs.conda.io/projects/continuumio-conda/en/latest/user-guide/install/) or preferably [miniforge](https://github.com/conda-forge/miniforge), you only need to pass the `environment.yml` file, which will install requirements and guarantee that whoever uses your code has the necessary packages (and correct versions). By default, the <span style="color:#3EACAD">template</span> uses [Python 3.9](https://www.python.org).
-
-```
-conda env create -n <your-environment-name> -f environment.yml
-```
-
-In case your project uses Python, it is *strongly* recommended to distribute it as a [package](https://packaging.python.org/).
-
-```{important}
-The <span style="color:#3EACAD">template</span> contains an example - the [datalab](https://github.com/worldbank/template/tree/main/src/datalab) Python package - and will automatically find and install any `src` packages as long as `pyproject.yml` is kept up-to-date.
+# Install dependencies
+pip install -e .
 ```
 
-```{seealso}
-[Conda Managing Environments](https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html)
-```
+### Code Structure
+- `src/lambda/`: Lambda function code
+- `src/sagemaker/`: SageMaker processing code
+- `src/ecr/`: Docker images
+- `src/stepfunctions/`: Workflow definitions
+- `src/apigateway/`: API definitions
+- `tests/`: Unit and functional tests
 
-#### Jupyter Notebooks
-
-[Jupyter Notebooks](https://jupyter.org) can be beautifully rendered and downloaded from your book. By default, the <span style="color:#3EACAD">template</span> will render any files listed on the [table of contents](#table-of-contents) that have a notebook structure. The <span style="color:#3EACAD">template</span> comes with a Jupyter notebook example, `notebooks/world-bank-api.ipynb`, to illustrate.
-
-```{important}
-Optionally, [Jupyter Book](https://jupyterbook.org) can execute notebooks during the build (on GitHub) and display **code outputs** and **interactive visualizations** as part of the *documentation* on the fly. In this case, Jupyter notebooks will be executed by [GitHub Actions](https://github.com/features/actions) during build on each commit to the `main` branch. Thus, it is important to include all [requirements and dependencies](#dependencies) in the repository. In case you would like to ignore a notebook, you can [exclude files from execution](https://jupyterbook.org/en/stable/content/execute.html#exclude-files-from-execution).
-```
-
-```{seealso}
-[Jupyter Book Write executable content](https://jupyterbook.org/en/stable/content/executable/index.html)
-```
-
-## License
-
-The <span style="color:#3EACAD">template</span> is licensed under the [**World Bank Master Community License Agreement**](LICENSE). Remember to replace the [license](LICENSE.md) if necessary. If open source, [choose an open source license](https://choosealicense.com).
+### Key Dependencies
+- `aws-lambda-powertools`: Lambda utilities
+- `boto3`: AWS SDK
+- `pavimentados`: ML processing library (custom)
+- `pandas`, `pyarrow`: Data processing

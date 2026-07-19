@@ -1,0 +1,151 @@
+{
+  "info": {
+    "_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "name": "Pavimentados API — Tasks",
+    "description": "Exercise `/tasks` against API Gateway.\n\n**Before running:**\n1. Open the collection **Variables** tab.\n2. Set `baseUrl` to your deploy URL (e.g. `https://xxxx.execute-api.us-east-1.amazonaws.com/dev`).\n3. Set `accessToken` to a Cognito **IdToken** (or **AccessToken** if your authorizer expects it) — no `Bearer ` prefix.\n4. Run **Create task** first so `taskId` is filled automatically, then the other requests in order.\n\n**Order:** List tasks → Create task → Get task → Update task → Generate attachment upload URL → Submit task → List tasks (again).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://ojy90h7g88.execute-api.us-east-1.amazonaws.com/dev"
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "taskId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "List tasks",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/tasks"
+      },
+      "response": []
+    },
+    {
+      "name": "Create task",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status is 201', function () { pm.response.to.have.status(201); });",
+              "try {",
+              "  var json = pm.response.json();",
+              "  if (json && json.Id) {",
+              "    pm.collectionVariables.set('taskId', json.Id);",
+              "    console.log('Set taskId to', json.Id);",
+              "  }",
+              "} catch (e) { console.warn('No Id in response', e); }"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"Name\": \"Postman smoke task\",\n  \"Description\": \"Created from Postman collection\",\n  \"Inputs\": {\n    \"Geography\": \"Pichincha\",\n    \"GeographySource\": \"manual\",\n    \"Type\": \"image_bundle\"\n  }\n}"
+        },
+        "url": "{{baseUrl}}/tasks"
+      },
+      "response": []
+    },
+    {
+      "name": "Get task by id",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/tasks/{{taskId}}"
+      },
+      "response": []
+    },
+    {
+      "name": "Update task (draft only)",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"Name\": \"Postman smoke task (updated)\",\n  \"Description\": \"After PUT\",\n  \"Inputs\": {\n    \"Geography\": \"Pichincha\",\n    \"GeographySource\": \"manual\"\n  }\n}"
+        },
+        "url": "{{baseUrl}}/tasks/{{taskId}}"
+      },
+      "response": []
+    },
+    {
+      "name": "Generate attachment upload URL",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"FieldName\": \"ImageBundle\",\n  \"Extension\": \"zip\",\n  \"ArrayLength\": 1\n}"
+        },
+        "url": "{{baseUrl}}/tasks/{{taskId}}/generateAttachmentUploadUrl"
+      },
+      "response": []
+    },
+    {
+      "name": "Submit task",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": "{{baseUrl}}/tasks/{{taskId}}/submit"
+      },
+      "response": []
+    },
+    {
+      "name": "List tasks (after workflow)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/tasks"
+      },
+      "response": []
+    },
+    {
+      "name": "List task types",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/taskTypes"
+      },
+      "response": []
+    }
+  ]
+}

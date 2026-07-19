@@ -28,8 +28,11 @@ class TaskService:
 
         try:
             task = self.repository.create_task(form, bucket_name)
-        except Exception as e:
-            logger.error(e.errors())
+        except ValidationError as e:
+            logger.warning('create_task validation failed', extra={'errors': e.errors()})
+            raise BadRequestError('Task could not be created.')
+        except Exception:
+            logger.exception('create_task failed')
             raise BadRequestError('Task could not be created.')
 
         return task
